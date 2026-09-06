@@ -481,9 +481,9 @@
       <div class="hint">Click a difficulty, or press 1 / 2 / 3</div>
     </div>
 
-    <!-- NAME ENTRY (new high score) -->
+    <!-- NAME ENTRY (shown after every game) -->
     <div id="nameScreen" class="overlay hidden">
-      <div class="title" style="font-size:26px;">★ NEW HIGH SCORE ★</div>
+      <div class="title" id="nameScreenTitle" style="font-size:26px;">★ NEW HIGH SCORE ★</div>
       <div id="nameInputRow">&nbsp;</div>
       <input type="text" id="nameRealInput" maxlength="14" autocomplete="off" autocorrect="off"
         autocapitalize="off" spellcheck="false" inputmode="text" enterkeyhint="done"
@@ -589,6 +589,7 @@ let particles, floatingTexts, shakeMag, shakeTime, levelUpTimer, achMsg, achTime
 let effects; // {shield:bool, speedUntil, slowUntil, multiplierUntil, magnetUntil}
 let lastTick = 0, tickAccum = 0;
 let playerName = '';
+let isNewHighScore = false;
 let rafId = null;
 
 function freshEffects(){ return {shield:false, speedUntil:0, slowUntil:0, multUntil:0, magnetUntil:0}; }
@@ -1521,20 +1522,13 @@ function endGame(){
   document.getElementById('newHigh').classList.toggle('hidden', score<=prevHigh);
   state = 'gameover';
 
-  if(score > prevHigh && score>0){
-    // Wait for the player to actually enter a name before recording the
-    // score — previously this submitted online immediately using the
-    // stale old profile.name, before the player ever got the chance to
-    // type a new one.
-    playerName = (profile.name && profile.name!=='Player') ? profile.name : '';
-    setTimeout(()=>goto('name'), 550);
-  } else {
-    // Not a new personal best, so there's no name-entry screen — but the
-    // run still deserves a spot on the leaderboard lists (previously only
-    // personal bests were ever recorded locally).
-    if(score>0) recordScore(diff, profile.name, score);
-    setTimeout(()=>{ showScreen('gameOverOverlay'); document.getElementById('gameOverOverlay').classList.remove('hidden'); }, 380);
-  }
+  // Name entry now shows after every game (win or not), on both phone
+  // and laptop — not just on a new personal best. The title just adapts
+  // to whether this particular run was a new high score.
+  isNewHighScore = score > prevHigh && score>0;
+  document.getElementById('nameScreenTitle').textContent = isNewHighScore ? '★ NEW HIGH SCORE ★' : 'ENTER YOUR NAME';
+  playerName = (profile.name && profile.name!=='Player') ? profile.name : '';
+  setTimeout(()=>goto('name'), 550);
 }
 
 // ==========================================================
