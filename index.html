@@ -1,0 +1,1906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Neon Snake — Advanced</title>
+<meta name="description" content="A neon-styled Snake game with power-ups, skins, maps, and online leaderboards.">
+<meta property="og:title" content="Neon Snake — Advanced">
+<meta property="og:description" content="A neon-styled Snake game with power-ups, skins, maps, and online leaderboards.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%2305060a'/%3E%3Cpath d='M25 70 Q25 35 50 35 Q75 35 75 55 Q75 70 55 70 L55 55 Q55 48 62 48' stroke='%2339ffb0' stroke-width='10' fill='none' stroke-linecap='round'/%3E%3Ccircle cx='68' cy='48' r='4' fill='%2300d1ff'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg-0:#05060a; --bg-1:#0a0e1a;
+    --accent:#39ffb0; --accent2:#00d1ff; --accent3:#ff2fd6;
+    --warn:#ffcc33; --danger:#ff3b5c;
+    --panel:rgba(14,18,28,0.85); --panel-border:rgba(57,255,176,0.35);
+    --text:#eaf6ff; --text-dim:#8fa3b8;
+    --snake-a:#39ffb0; --snake-b:#00d1ff; --head-glow:#c8fff0;
+    --grid-line:rgba(120,200,255,0.045);
+    --food:#ff5470; --bonus:#ffcc33; --golden:#ffe066;
+  }
+  [data-theme="sunset"]{
+    --accent:#ff7a45; --accent2:#ffce54; --accent3:#ff3d81;
+    --snake-a:#ff7a45; --snake-b:#ffce54; --head-glow:#fff2cc;
+    --panel-border:rgba(255,122,69,0.35);
+    --food:#ff3d81; --bonus:#ffce54; --golden:#fff066;
+  }
+  [data-theme="matrix"]{
+    --accent:#39ff5f; --accent2:#0aff9d; --accent3:#adff2f;
+    --snake-a:#39ff5f; --snake-b:#0aff9d; --head-glow:#e8ffe8;
+    --panel-border:rgba(57,255,95,0.35);
+    --food:#ff5b5b; --bonus:#adff2f; --golden:#eaff6b;
+    --grid-line:rgba(57,255,95,0.05);
+  }
+  [data-theme="ocean"]{
+    --accent:#38bdf8; --accent2:#818cf8; --accent3:#22d3ee;
+    --snake-a:#38bdf8; --snake-b:#818cf8; --head-glow:#e0f2ff;
+    --panel-border:rgba(56,189,248,0.35);
+    --food:#f472b6; --bonus:#22d3ee; --golden:#facc15;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  button{ font-family:inherit; }
+  button.theme-dot, button.lb-tab, button.avatar-opt, button#profileNameRow{
+    -webkit-appearance:none; appearance:none; margin:0; text-align:inherit;
+  }
+  button.theme-dot, button.avatar-opt{ padding:0; }
+  button.theme-dot{ background-color:transparent; }
+  button#profileNameRow{ background:none; border:none; padding:0; color:inherit; }
+  :focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  html,body{
+    margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(57,255,176,0.08), transparent 45%),
+      radial-gradient(ellipse at 85% 85%, rgba(0,209,255,0.08), transparent 45%),
+      var(--bg-0);
+    font-family:'Segoe UI', system-ui, Arial, sans-serif; color:var(--text); user-select:none;
+  }
+  #wrap{ display:flex; align-items:center; justify-content:center; height:100%; width:100%; }
+  #stage{
+    position:relative; width:600px; height:640px; max-width:100vw; max-height:100vh;
+    filter: drop-shadow(0 0 40px rgba(57,255,176,0.06));
+  }
+  #bgCanvas{ position:absolute; inset:0; z-index:0; }
+  #hudTop{
+    position:absolute; top:0; left:0; right:0; height:calc(72px + env(safe-area-inset-top,0px)); z-index:5;
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding:0 calc(16px + env(safe-area-inset-right,0px)) 10px calc(16px + env(safe-area-inset-left,0px));
+    pointer-events:none;
+  }
+  .stat{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:12px;
+    padding:8px 14px; font-weight:800; font-size:13px; letter-spacing:.5px; color:var(--text-dim);
+    backdrop-filter: blur(6px); min-width:78px; text-align:center;
+  }
+  .stat b{ display:block; font-size:20px; color:var(--text); font-weight:900; margin-top:2px; }
+  .stat.score b{ color:var(--accent); text-shadow:0 0 12px var(--accent); }
+  .stat.high b{ color:var(--warn); text-shadow:0 0 12px var(--warn); }
+  .stat.level b{ color:var(--accent2); text-shadow:0 0 12px var(--accent2); }
+  .stat.coins b{ color:#ffd23f; text-shadow:0 0 12px #ffd23f; }
+  #comboWrap{
+    position:absolute; top:calc(78px + env(safe-area-inset-top,0px)); left:50%; transform:translateX(-50%); z-index:5;
+    opacity:0; transition:opacity .2s, transform .2s; pointer-events:none; text-align:center;
+  }
+  #comboWrap.show{ opacity:1; }
+  #comboWrap .cval{
+    font-size:26px; font-weight:900; color:var(--accent3); text-shadow:0 0 16px var(--accent3);
+    letter-spacing:1px;
+  }
+  #canvasArea{ position:absolute; top:calc(72px + env(safe-area-inset-top,0px)); left:0; right:0; bottom:0; z-index:2; }
+  #pauseBtn{
+    position:absolute; top:calc(8px + env(safe-area-inset-top,0px)); right:calc(16px + env(safe-area-inset-right,0px)); z-index:6; width:44px; height:44px;
+    border-radius:10px; border:1px solid var(--panel-border); background:var(--panel);
+    color:var(--text); font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    touch-action:manipulation;
+  }
+  #pauseBtn:active{ background:rgba(57,255,176,0.2); }
+  canvas#game{ display:block; width:100%; height:100%; touch-action:none; }
+  .overlay{
+    position:absolute; inset:0; z-index:20; display:flex; flex-direction:column;
+    align-items:center; justify-content:flex-start; padding-top:22px; overflow-y:auto;
+    background:linear-gradient(180deg, rgba(5,6,10,0.94) 0%, rgba(6,10,18,0.98) 100%);
+  }
+  .hidden{display:none !important;}
+  .title{
+    font-size:46px; font-weight:900; letter-spacing:3px; margin:6px 0 4px 0; text-align:center;
+    background:linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 18px rgba(57,255,176,0.35));
+    animation: hueGlow 6s ease-in-out infinite;
+  }
+  @keyframes hueGlow{ 0%,100%{filter:drop-shadow(0 0 18px rgba(57,255,176,0.35));} 50%{filter:drop-shadow(0 0 26px rgba(0,209,255,0.45));} }
+  .subtitle{ color:var(--text-dim); font-size:13px; margin-bottom:18px; letter-spacing:1px; text-align:center; padding:0 20px;}
+  .menu-btns{display:flex; flex-direction:column; gap:12px; width:300px; max-width:88%;}
+  button.mbtn{
+    font-family:inherit; font-size:17px; font-weight:800; color:var(--text);
+    border:1.5px solid var(--panel-border); border-radius:12px; background:var(--panel);
+    padding:13px 10px; cursor:pointer; letter-spacing:1px; position:relative; overflow:hidden;
+    transition: transform .08s ease, box-shadow .15s ease, border-color .15s ease;
+  }
+  button.mbtn::before{
+    content:''; position:absolute; inset:0; opacity:0; transition:opacity .15s;
+    background:linear-gradient(120deg, transparent, rgba(255,255,255,0.08), transparent);
+  }
+  button.mbtn:hover{ border-color:var(--accent); box-shadow:0 0 18px rgba(57,255,176,0.25); }
+  button.mbtn:hover::before{ opacity:1; }
+  button.mbtn:active{transform:scale(0.96);}
+  button.mbtn.primary{ background:linear-gradient(120deg, rgba(57,255,176,0.18), rgba(0,209,255,0.12)); border-color:var(--accent); }
+  button.mbtn.danger{ border-color:var(--danger); color:#ffdde3; }
+  button.mbtn.small{ padding:9px 8px; font-size:14px; }
+  .version{position:absolute; bottom:10px; font-size:11px; color:var(--text-dim); letter-spacing:1px;}
+  .loader-ring{
+    width:44px; height:44px; border-radius:50%;
+    border:3px solid var(--panel-border); border-top-color:var(--accent);
+    animation: spin 0.9s linear infinite; margin-top:8px;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .landing-icon{
+    width:76px; height:76px; margin:10px auto 14px; border-radius:20px;
+    background:linear-gradient(135deg, rgba(57,255,176,0.16), rgba(0,209,255,0.10));
+    border:1px solid var(--panel-border); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 0 36px rgba(57,255,176,0.15);
+  }
+  .landing-h1{
+    font-size:clamp(30px,7vw,48px); font-weight:900; letter-spacing:2px; margin:0 0 10px;
+    background:linear-gradient(90deg, var(--accent), var(--accent2), var(--accent3));
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+    filter:drop-shadow(0 0 18px rgba(57,255,176,0.3));
+  }
+  .landing-tag{ font-size:14px; color:var(--text-dim); max-width:400px; margin:0 auto 26px; line-height:1.6; padding:0 20px; }
+  .landing-play{
+    font-family:inherit; font-size:17px; font-weight:900; letter-spacing:1px;
+    color:var(--bg-0); border:none; cursor:pointer; padding:15px 40px; border-radius:14px;
+    background:linear-gradient(120deg, var(--accent), var(--accent2));
+    box-shadow:0 0 26px rgba(57,255,176,0.35);
+  }
+  .landing-play:active{ transform:scale(0.98); }
+  .landing-hint{ margin-top:12px; font-size:11px; color:var(--text-dim); letter-spacing:.5px; }
+  .landing-features{
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:12px;
+    margin-top:34px; padding:0 20px 20px; text-align:left; max-width:520px;
+  }
+  .landing-feature{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:14px; padding:14px;
+  }
+  .landing-feature .lf-icon{ font-size:20px; margin-bottom:6px; }
+  .landing-feature h3{ margin:0 0 4px; font-size:13px; letter-spacing:.3px; }
+  .landing-feature p{ margin:0; font-size:11px; color:var(--text-dim); line-height:1.4; }
+  .card{
+    display:flex; align-items:center; gap:14px; width:480px; max-width:88%;
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:12px;
+    padding:11px 16px; margin-bottom:9px;
+  }
+  .card .icon{ font-size:20px; width:26px; text-align:center; filter:drop-shadow(0 0 6px rgba(255,255,255,0.3)); }
+  .card .txt{ font-size:15px; font-weight:600; color:var(--text); }
+  .card .txt small{ display:block; color:var(--text-dim); font-weight:500; font-size:12px; margin-top:2px;}
+  .lb-row{
+    display:flex; align-items:center; width:460px; max-width:88%;
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:10px;
+    padding:9px 16px; margin-bottom:8px; font-weight:700; font-size:16px;
+  }
+  .lb-rank{width:34px; color:var(--accent);}
+  .lb-name{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .lb-score{color:var(--warn); font-weight:900;}
+  .lb-tabs{ display:flex; gap:8px; margin-bottom:12px; }
+  .lb-tab{
+    padding:6px 14px; border-radius:20px; border:1px solid var(--panel-border); background:var(--panel);
+    font-size:12px; font-weight:800; cursor:pointer; color:var(--text-dim);
+  }
+  .lb-tab.active{ color:var(--bg-0); background:var(--accent); border-color:var(--accent); }
+  #nameInputRow{
+    width:340px; max-width:85%; background:var(--panel); border:2px solid var(--panel-border);
+    border-radius:14px; padding:16px; text-align:center; font-size:26px;
+    font-weight:900; color:var(--text); margin:22px 0 8px 0; min-height:38px; letter-spacing:2px;
+  }
+  #nameInputRow.active{border-color:var(--accent); box-shadow:0 0 20px rgba(57,255,176,0.25);}
+  .hint{color:var(--text-dim); font-size:12px; margin-top:4px; text-align:center;}
+  .pulse{animation:pulseAnim 1.3s ease-in-out infinite;}
+  @keyframes pulseAnim{0%,100%{opacity:.6;}50%{opacity:1;}}
+  .theme-row{ display:flex; gap:10px; margin-top:8px; }
+  .theme-dot{
+    width:38px; height:38px; border-radius:50%; cursor:pointer; border:2px solid transparent;
+    display:flex; align-items:center; justify-content:center; font-size:16px;
+  }
+  .theme-dot.active{ border-color:#fff; box-shadow:0 0 12px #fff; }
+  .theme-dot.locked{ opacity:0.4; }
+  .theme-dot[data-theme-swatch="neon"]{ background:linear-gradient(135deg,#39ffb0,#00d1ff); }
+  .theme-dot[data-theme-swatch="sunset"]{ background:linear-gradient(135deg,#ff7a45,#ffce54); }
+  .theme-dot[data-theme-swatch="matrix"]{ background:linear-gradient(135deg,#39ff5f,#0aff9d); }
+  .theme-dot[data-theme-swatch="ocean"]{ background:linear-gradient(135deg,#38bdf8,#818cf8); }
+  .voltrack{ width:300px; max-width:85%; margin-top:16px; }
+  .voltrack .lbl{ text-align:center; font-size:12px; color:var(--text-dim); margin-bottom:6px; }
+  .volrow{ display:flex; align-items:center; gap:10px; }
+  .volbtn{
+    width:40px; height:36px; border-radius:8px; border:1px solid var(--panel-border);
+    background:var(--panel); color:var(--text); font-weight:800; cursor:pointer; font-size:16px;
+  }
+  .volbar{ flex:1; height:14px; background:rgba(255,255,255,0.06); border:1px solid var(--panel-border); border-radius:8px; overflow:hidden; }
+  .volfill{ height:100%; background:linear-gradient(90deg, var(--accent), var(--accent2)); width:60%; }
+  #achievement{
+    position:absolute; top:14px; left:50%; transform:translateX(-50%); z-index:8;
+    background:var(--panel); border:1px solid var(--warn); border-radius:12px;
+    padding:9px 18px; text-align:center; pointer-events:none; opacity:0; transition:opacity .2s, transform .2s;
+    box-shadow:0 0 22px rgba(255,204,51,0.25);
+  }
+  #achievement.show{opacity:1;}
+  #achievement .a-title{color:var(--warn); font-weight:900; font-size:13px; letter-spacing:1px;}
+  #achievement .a-msg{font-size:13px; margin-top:2px; color:var(--text);}
+  #levelup{
+    position:absolute; top:40%; left:50%; transform:translate(-50%,-50%); z-index:9;
+    color:var(--warn); font-weight:900; font-size:44px; letter-spacing:2px;
+    text-shadow:0 0 24px var(--warn); opacity:0; pointer-events:none; transition:opacity .15s, transform .3s;
+  }
+  #levelup.show{opacity:1;}
+  #pauseLabel{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); z-index:9;
+    font-size:44px; font-weight:900; color:var(--text); letter-spacing:4px;
+    text-shadow:0 0 20px var(--accent2);
+  }
+  #pauseOverlay{
+    position:absolute; inset:0; z-index:8; display:flex; align-items:center; justify-content:center;
+    background:rgba(4,6,10,0.55); backdrop-filter:blur(3px);
+  }
+  #gameOverOverlay{
+    position:absolute; inset:0; z-index:25; display:flex; align-items:center; justify-content:center;
+    background:rgba(3,4,8,0.78); backdrop-filter:blur(2px);
+  }
+  #goBox{
+    width:380px; max-width:90%; background:var(--panel); border:1.5px solid var(--danger);
+    border-radius:20px; padding:22px 26px 24px; text-align:center;
+    box-shadow:0 0 50px rgba(255,59,92,0.25);
+  }
+  #goBox .trophy{font-size:34px;}
+  #goBox h2{color:var(--danger); margin:2px 0 14px 0; font-size:28px; letter-spacing:2px; text-shadow:0 0 16px rgba(255,59,92,0.4);}
+  .go-row{display:flex; justify-content:space-between; padding:0 8px; font-size:15px; margin:6px 0;}
+  .go-label{color:var(--text-dim);}
+  .go-val{font-weight:800;}
+  #newHigh{color:var(--warn); font-weight:900; margin-top:10px; text-shadow:0 0 12px var(--warn);}
+  .go-btn{
+    width:100%; margin-top:10px; padding:12px; border-radius:10px; border:1.5px solid;
+    font-family:inherit; font-weight:800; font-size:15px; color:var(--text); cursor:pointer; letter-spacing:.5px;
+  }
+  #restartBtn{background:rgba(57,255,176,0.14); border-color:var(--accent);}
+  #menuBtn2{background:rgba(255,59,92,0.14); border-color:var(--danger);}
+  #touchpad{
+    position:absolute; bottom:calc(14px + env(safe-area-inset-bottom,0px)); right:calc(14px + env(safe-area-inset-right,0px)); display:none; z-index:6;
+    grid-template-columns:50px 50px 50px; grid-template-rows:50px 50px 50px;
+    gap:5px;
+  }
+  #touchpad button{
+    background:var(--panel); border:1px solid var(--panel-border);
+    border-radius:10px; color:var(--text); font-size:19px; touch-action:manipulation;
+  }
+  #touchpad button:active{ background:rgba(57,255,176,0.2); }
+  .effectBadges{ position:absolute; bottom:14px; left:14px; z-index:6; display:flex; gap:6px; flex-wrap:wrap; max-width:200px; }
+  .badge{
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:8px; padding:4px 8px;
+    font-size:11px; font-weight:800; display:flex; align-items:center; gap:4px;
+  }
+  .shop-row{
+    display:flex; align-items:center; gap:12px; width:480px; max-width:90%;
+    background:var(--panel); border:1px solid var(--panel-border); border-radius:12px;
+    padding:10px 14px; margin-bottom:8px;
+  }
+  .shop-row .icon{ font-size:20px; width:26px; text-align:center; }
+  .shop-row .txt{ flex:1; font-size:14px; font-weight:700; }
+  .shop-row .txt small{ display:block; color:var(--text-dim); font-weight:500; font-size:11px; margin-top:2px; }
+  .shop-btn{
+    padding:8px 12px; border-radius:8px; border:1.5px solid var(--accent);
+    background:rgba(57,255,176,0.14); color:var(--text); font-weight:800; font-size:12px;
+    cursor:pointer; white-space:nowrap; font-family:inherit;
+  }
+  .shop-btn.owned{ border-color:var(--text-dim); background:transparent; color:var(--text-dim); cursor:default; }
+  .shop-btn.equipped{ border-color:var(--warn); background:rgba(255,204,51,0.16); color:var(--warn); cursor:default; }
+  .shop-section-hdr{ width:480px; max-width:90%; font-size:12px; font-weight:900; color:var(--text-dim); letter-spacing:1px; margin:10px 0 4px; }
+  .mbtn.locked-map{ opacity:0.55; }
+  .avatar-row{ display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; justify-content:center; max-width:320px; }
+  .avatar-opt{
+    width:40px; height:40px; border-radius:50%; background:var(--panel); border:2px solid transparent;
+    display:flex; align-items:center; justify-content:center; font-size:20px; cursor:pointer;
+  }
+  .avatar-opt.active{ border-color:var(--accent); box-shadow:0 0 10px var(--accent); }
+  #profileNameRow{ cursor:pointer; }
+  @media (max-width:680px){
+    #touchpad{display:grid;}
+  }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="bgCanvas" width="600" height="640"></canvas>
+
+    <div id="hudTop" class="hidden">
+      <div class="stat score">SCORE<b id="hudScore">0</b></div>
+      <div class="stat coins">COINS<b id="hudCoins">0</b></div>
+      <div class="stat level">LEVEL<b id="hudLevel">1</b></div>
+      <div class="stat high">HIGH<b id="hudHigh">0</b></div>
+    </div>
+    <button id="pauseBtn" class="hidden" type="button" title="Pause">⏸</button>
+    <div id="comboWrap"><div class="cval">COMBO x<span id="comboVal">1</span></div></div>
+
+    <div id="canvasArea">
+      <canvas id="game" width="600" height="568"></canvas>
+    </div>
+
+    <div id="achievement"><div class="a-title">★ ACHIEVEMENT ★</div><div class="a-msg" id="achMsg"></div></div>
+    <div id="levelup">LEVEL UP!</div>
+    <div id="pauseOverlay" class="hidden"><div id="pauseLabel">PAUSED<br><span style="font-size:14px; letter-spacing:1px; opacity:0.8;">tap to resume</span></div></div>
+    <div class="effectBadges" id="effectBadges"></div>
+
+    <div id="touchpad">
+      <div></div><button data-dir="UP">▲</button><div></div>
+      <button data-dir="LEFT">◀</button><div></div><button data-dir="RIGHT">▶</button>
+      <div></div><button data-dir="DOWN">▼</button><div></div>
+    </div>
+
+    <!-- LANDING -->
+    <div id="landingScreen" class="overlay hidden" style="z-index:60; justify-content:center; background:var(--bg-0); text-align:center; overflow-y:auto;">
+      <div class="landing-icon" aria-hidden="true">
+        <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" width="46" height="46">
+          <path d="M25 70 Q25 35 50 35 Q75 35 75 55 Q75 70 55 70 L55 55 Q55 48 62 48" stroke="#39ffb0" stroke-width="9" fill="none" stroke-linecap="round"/>
+          <circle cx="68" cy="48" r="4.5" fill="#00d1ff"/>
+        </svg>
+      </div>
+      <h1 class="landing-h1">NEON SNAKE</h1>
+      <div class="landing-tag">
+        The classic reimagined — glowing arenas, power-ups, unlockable skins &amp; maps,
+        and online leaderboards to chase.
+      </div>
+      <button type="button" class="landing-play" id="btnLandingPlay">▶ PLAY NOW</button>
+      <div class="landing-hint">No download required · works on desktop &amp; mobile</div>
+      <div class="landing-features">
+        <div class="landing-feature"><div class="lf-icon">⚡</div><h3>Power-Ups</h3><p>Speed, slow-mo, shields, multipliers &amp; a magnet.</p></div>
+        <div class="landing-feature"><div class="lf-icon">🎨</div><h3>Skins &amp; Maps</h3><p>Unlock new looks and arenas as you play.</p></div>
+        <div class="landing-feature"><div class="lf-icon">🏆</div><h3>Leaderboards</h3><p>Compete across three difficulty tiers.</p></div>
+        <div class="landing-feature"><div class="lf-icon">🪙</div><h3>Coins &amp; Shop</h3><p>Earn coins, spend them on cosmetics.</p></div>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div id="loadingScreen" class="overlay" style="z-index:50; justify-content:center; background:var(--bg-0);">
+      <div class="title" style="font-size:38px;">NEON SNAKE</div>
+      <div class="loader-ring" aria-hidden="true"></div>
+      <div class="hint" id="loadingHint" style="margin-top:14px;">Loading profile…</div>
+    </div>
+
+    <!-- MAIN MENU -->
+    <div id="mainMenu" class="overlay hidden">
+      <div class="title">NEON SNAKE</div>
+      <div class="subtitle">Arrow keys / swipe to move · P to pause · collect power-ups</div>
+      <div class="menu-btns">
+        <button class="mbtn primary" id="btnStart">▶ START GAME</button>
+        <button class="mbtn" id="btnInstr">📖 HOW TO PLAY</button>
+        <button class="mbtn" id="btnSettings">⚙ SETTINGS</button>
+        <button class="mbtn" id="btnLB">🏆 LEADERBOARD</button>
+        <button class="mbtn" id="btnShop">🛒 SHOP</button>
+        <button class="mbtn" id="btnProfile">👤 PROFILE</button>
+      </div>
+      <div class="version">Neon Snake · Advanced Edition · v1.1.0</div>
+    </div>
+
+    <!-- SETTINGS -->
+    <div id="settingsScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">SETTINGS</div>
+      <div class="hint" style="margin-bottom:6px;">THEME</div>
+      <div class="theme-row" id="themeRow">
+        <button type="button" class="theme-dot" data-theme-swatch="neon" data-theme="neon"></button>
+        <button type="button" class="theme-dot" data-theme-swatch="sunset" data-theme="sunset"></button>
+        <button type="button" class="theme-dot" data-theme-swatch="matrix" data-theme="matrix"></button>
+        <button type="button" class="theme-dot" data-theme-swatch="ocean" data-theme="ocean"></button>
+      </div>
+      <div class="menu-btns" style="margin-top:20px;">
+        <button class="mbtn" id="toggleSound">🔊 Sound : ON</button>
+        <button class="mbtn" id="toggleWrap">🧱 Wrap Walls : OFF</button>
+      </div>
+      <div class="voltrack">
+        <div class="lbl">Sound Volume : <span id="volPct">55%</span></div>
+        <div class="volrow">
+          <button class="volbtn" id="volMinus">−</button>
+          <div class="volbar"><div class="volfill" id="volBar" style="width:55%;"></div></div>
+          <button class="volbtn" id="volPlus">+</button>
+        </div>
+      </div>
+      <button class="mbtn small" style="width:150px; margin-top:22px;" id="btnSettingsBack">BACK</button>
+    </div>
+
+    <!-- INSTRUCTIONS -->
+    <div id="instrScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">HOW TO PLAY</div>
+      <div class="card"><div class="icon">🕹️</div><div class="txt">Arrow Keys / Swipe<small>Steer the snake</small></div></div>
+      <div class="card"><div class="icon">⏸️</div><div class="txt">P<small>Pause / resume</small></div></div>
+      <div class="card"><div class="icon">🍎</div><div class="txt">Red orbs<small>+10 pts, grow by 1</small></div></div>
+      <div class="card"><div class="icon">⭐</div><div class="txt">Yellow stars<small>+50 pts, timed bonus</small></div></div>
+      <div class="card"><div class="icon">👑</div><div class="txt">Golden orb<small>+150 pts, rare spawn</small></div></div>
+      <div class="card"><div class="icon">⚡</div><div class="txt">Power-ups<small>Speed, Slow-Mo, Shield, x2 Score, Magnet</small></div></div>
+      <div class="card"><div class="icon">🔥</div><div class="txt">Combo<small>Chain food quickly to multiply score</small></div></div>
+      <div class="card"><div class="icon">🧱</div><div class="txt">Obstacles<small>Appear from level 3 — avoid them</small></div></div>
+      <button class="mbtn small" style="width:150px; margin-top:10px;" id="btnInstrBack">BACK</button>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div id="lbScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">🏆 LEADERBOARD</div>
+      <div class="lb-tabs" id="lbTabs">
+        <button type="button" class="lb-tab active" data-diff="6">EASY</button>
+        <button type="button" class="lb-tab" data-diff="9">MEDIUM</button>
+        <button type="button" class="lb-tab" data-diff="13">HARD</button>
+      </div>
+      <div id="lbStatus" style="font-size:11px; color:var(--text-dim); margin-bottom:8px;">Loading…</div>
+      <div id="lbList" style="width:100%; display:flex; flex-direction:column; align-items:center; max-height:300px; overflow:auto;"></div>
+      <div style="display:flex; gap:8px; margin-top:14px;">
+        <button class="mbtn small" style="width:120px;" id="btnLBRefresh">🔄 Refresh</button>
+        <button class="mbtn small" style="width:120px;" id="btnLBBack">BACK</button>
+      </div>
+    </div>
+
+    <!-- MAP SELECT -->
+    <div id="mapScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">SELECT MAP</div>
+      <div id="mapList" class="menu-btns" style="margin-top:10px;"></div>
+      <div class="hint">🔒 Locked maps can be unlocked in the Shop</div>
+      <button class="mbtn small" style="width:150px; margin-top:14px;" id="btnMapBack">BACK</button>
+    </div>
+
+    <!-- SHOP -->
+    <div id="shopScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">🛒 SHOP</div>
+      <div class="hint" style="margin-bottom:4px;">Your Coins: <b id="shopCoins" style="color:var(--warn);">0</b></div>
+      <div id="shopList" style="width:100%; display:flex; flex-direction:column; align-items:center; max-height:420px; overflow:auto;"></div>
+      <button class="mbtn small" style="width:150px; margin-top:14px;" id="btnShopBack">BACK</button>
+    </div>
+
+    <!-- PROFILE -->
+    <div id="profileScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">PROFILE</div>
+      <button type="button" id="profileNameRow" style="font-size:22px; font-weight:900; margin-bottom:2px;" title="Click to rename">Player ✎</button>
+      <div class="avatar-row" id="avatarRow"></div>
+      <div class="menu-btns" style="margin-top:18px; width:320px;">
+        <div class="stat" style="width:100%;">TOTAL COINS EARNED<b id="profTotalCoins">0</b></div>
+        <div class="stat" style="width:100%;">GAMES PLAYED<b id="profGames">0</b></div>
+        <div class="stat" style="width:100%;">BEST SCORE (ANY MODE)<b id="profBest">0</b></div>
+      </div>
+      <button class="mbtn small" style="width:150px; margin-top:20px;" id="btnProfileBack">BACK</button>
+      <button class="mbtn small danger" style="width:200px; margin-top:10px;" id="btnResetProgress">⚠ Reset Progress</button>
+    </div>
+
+    <!-- DIFFICULTY -->
+    <div id="diffScreen" class="overlay hidden">
+      <div class="title" style="font-size:30px;">SELECT DIFFICULTY</div>
+      <div class="menu-btns" style="margin-top:14px;">
+        <button class="mbtn" data-speed="6">🟢 EASY</button>
+        <button class="mbtn" data-speed="9">🟡 MEDIUM</button>
+        <button class="mbtn" data-speed="13">🔴 HARD</button>
+      </div>
+      <div class="hint">Click a difficulty, or press 1 / 2 / 3</div>
+    </div>
+
+    <!-- NAME ENTRY (new high score) -->
+    <div id="nameScreen" class="overlay hidden">
+      <div class="title" style="font-size:26px;">★ NEW HIGH SCORE ★</div>
+      <div id="nameInputRow">&nbsp;</div>
+      <div class="hint" id="nameHint">Type your name, press ENTER</div>
+    </div>
+
+    <!-- GAME OVER -->
+    <div id="gameOverOverlay" class="hidden">
+      <div id="goBox">
+        <div class="trophy">💥</div>
+        <h2>GAME OVER</h2>
+        <div class="go-row"><span class="go-label">Score</span><span class="go-val" id="goScore" style="color:var(--accent);">0</span></div>
+        <div class="go-row"><span class="go-label">High Score</span><span class="go-val" id="goHigh" style="color:var(--warn);">0</span></div>
+        <div class="go-row"><span class="go-label">Level Reached</span><span class="go-val" id="goLevel" style="color:var(--accent2);">1</span></div>
+        <div class="go-row"><span class="go-label">Best Combo</span><span class="go-val" id="goCombo" style="color:var(--accent3);">x1</span></div>
+        <div class="go-row"><span class="go-label">Coins Earned</span><span class="go-val" id="goCoins" style="color:var(--warn);">+0</span></div>
+        <div id="newHigh" class="hidden pulse">★ NEW HIGH SCORE ★</div>
+        <button class="go-btn" id="restartBtn">↻ Restart (R)</button>
+        <button class="go-btn" id="menuBtn2">✕ Main Menu (ESC)</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// ==========================================================
+// CONFIG
+// ==========================================================
+const COLS = 30, ROWS = 28, CELL = 20;
+const WIDTH = COLS*CELL, HEIGHT = ROWS*CELL;
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+canvas.width = WIDTH; canvas.height = HEIGHT;
+const bgCanvas = document.getElementById('bgCanvas');
+const bctx = bgCanvas.getContext('2d');
+const stageEl = document.getElementById('stage');
+
+// Keep the stage locked to the game's true aspect ratio (WIDTH x HEIGHT)
+// instead of stretching to fill the viewport, which distorted the canvas
+// on mobile (fixes squashed/stretched snake + food on phones).
+function fitStage(){
+  const aspect = WIDTH/HEIGHT;
+  const availW = window.innerWidth, availH = window.innerHeight;
+  let w = availW, h = w/aspect;
+  if(h > availH){ h = availH; w = h*aspect; }
+  stageEl.style.width = Math.round(w)+'px';
+  stageEl.style.height = Math.round(h)+'px';
+}
+window.addEventListener('resize', fitStage);
+window.addEventListener('orientationchange', fitStage);
+fitStage();
+
+function css(varName){ return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
+
+// ==========================================================
+// AUDIO (procedural WebAudio — no external files)
+// ==========================================================
+let audioCtx = null, soundOn = true, soundVolume = 0.55;
+function ensureAudio(){ if(!audioCtx){ try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){} } if(audioCtx && audioCtx.state==='suspended') audioCtx.resume(); }
+function beep(freq, dur, type, vol, glideTo){
+  if(!soundOn || !audioCtx) return;
+  const t0 = audioCtx.currentTime;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type || 'sine';
+  osc.frequency.setValueAtTime(freq, t0);
+  if(glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, t0+dur);
+  gain.gain.setValueAtTime(0.0001, t0);
+  gain.gain.exponentialRampToValueAtTime(Math.max(0.001,(vol||0.3))*soundVolume, t0+0.01);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  osc.start(t0); osc.stop(t0+dur+0.02);
+}
+function sndEat(){ beep(520,0.09,'triangle',0.35,720); }
+function sndBonus(){ beep(680,0.14,'square',0.3,1000); }
+function sndGolden(){ beep(420,0.05,'sawtooth',0.28); setTimeout(()=>beep(840,0.18,'sawtooth',0.3,1200),60); }
+function sndPower(){ beep(300,0.05,'square',0.25); setTimeout(()=>beep(600,0.05,'square',0.25),50); setTimeout(()=>beep(900,0.14,'square',0.3),100); }
+function sndCrash(){ beep(180,0.35,'sawtooth',0.4,40); }
+function sndLevel(){ beep(440,0.08,'triangle',0.3); setTimeout(()=>beep(660,0.08,'triangle',0.3),80); setTimeout(()=>beep(880,0.22,'triangle',0.35),160); }
+function sndClick(){ beep(300,0.05,'sine',0.15); }
+document.addEventListener('click', ensureAudio, {once:false});
+document.addEventListener('touchstart', ensureAudio, {once:false});
+
+// ==========================================================
+// STATE
+// ==========================================================
+let state = 'menu'; // menu, difficulty, instructions, settings, leaderboard, name, playing, paused, gameover
+let theme = 'neon';
+let wrapWalls = false;
+let selectedSpeed = 9; // must match one of the real difficulty tiers (6/9/13) so leaderboard lookups resolve correctly
+let pausedAt = 0;
+
+let snake, dir, nextDir, growPending, food, bonusFood, bonusTimer, goldenFood, goldenActive, goldenTimer;
+let obstacles, powerUp, powerUpTimer;
+let score, highScoreByDiff, level, speed, combo, comboBest, comboTimer;
+let particles, floatingTexts, shakeMag, shakeTime, levelUpTimer, achMsg, achTimer;
+let effects; // {shield:bool, speedUntil, slowUntil, multiplierUntil, magnetUntil}
+let lastTick = 0, tickAccum = 0;
+let playerName = '';
+let rafId = null;
+
+function freshEffects(){ return {shield:false, speedUntil:0, slowUntil:0, multUntil:0, magnetUntil:0}; }
+
+// ==========================================================
+// PERSISTENCE
+// ==========================================================
+const LB_KEY = 'neon_snake_leaderboard_v1';
+const SET_KEY = 'neon_snake_settings_v1';
+const LB_SIZE = 25; // stored size for both local and online lists; display still shows top 10
+function loadLB(){
+  try{
+    const raw = JSON.parse(localStorage.getItem(LB_KEY));
+    const lb = {6:[],9:[],13:[]};
+    if(raw && typeof raw==='object'){
+      [6,9,13].forEach(d=>{
+        if(Array.isArray(raw[d])){
+          // Drop any entry that isn't a well-formed {name, score} row —
+          // a corrupted or hand-edited save shouldn't be able to break
+          // rendering or score comparisons downstream.
+          lb[d] = raw[d].filter(row => row && typeof row.score==='number' && isFinite(row.score) && row.score>=0)
+            .map(row => ({ name: (typeof row.name==='string' ? row.name : 'Player').slice(0,14) || 'Player', score: row.score }));
+        }
+      });
+    }
+    return lb;
+  }catch(e){ return {6:[],9:[],13:[]}; }
+}
+function saveLB(lb){ try{ localStorage.setItem(LB_KEY, JSON.stringify(lb)); }catch(e){ console.warn('Could not save local leaderboard:', e); } }
+function highForDiff(d){ const lb = loadLB(); const list = lb[d]||[]; return list.length? list[0].score : 0; }
+function addScore(d, name, sc){
+  const lb = loadLB(); if(!lb[d]) lb[d]=[];
+  lb[d].push({name: name||'Player', score: sc});
+  lb[d].sort((a,b)=>b.score-a.score);
+  lb[d] = lb[d].slice(0,LB_SIZE);
+  saveLB(lb);
+}
+function loadSettings(){
+  try{
+    const s = JSON.parse(localStorage.getItem(SET_KEY));
+    if(s){ soundOn = s.soundOn!==undefined? s.soundOn: true; soundVolume = s.soundVolume!==undefined? s.soundVolume:0.55; theme = s.theme||'neon'; wrapWalls = !!s.wrapWalls; }
+  }catch(e){}
+}
+function saveSettings(){ try{ localStorage.setItem(SET_KEY, JSON.stringify({soundOn, soundVolume, theme, wrapWalls})); }catch(e){ console.warn('Could not save settings:', e); } }
+
+// ==========================================================
+// PROFILE / COINS / SHOP CATALOG
+// ==========================================================
+const PROFILE_KEY = 'neon_snake_profile_v1';
+const PROFILE_SAVE_VERSION = 2; // bump when defaultProfile()'s shape changes and old saves need migrating
+const DEFAULT_AVATARS = ['🐍','🦎','🐉','🦖','🐲','😺','🤖','👾'];
+const SKINS = [
+  {id:'neon',   name:'Neon (Default)', desc:'Classic teal & cyan glow', price:0},
+  {id:'sunset', name:'Sunset Skin',    desc:'Warm orange & gold',       price:150},
+  {id:'matrix', name:'Matrix Skin',    desc:'Toxic green code-glow',    price:300},
+  {id:'ocean',  name:'Ocean Skin',     desc:'Cool blue & violet',       price:450},
+];
+const MAPS = [
+  {id:'classic', name:'Classic Arena', desc:'Open field, random obstacles', price:0},
+  {id:'maze',    name:'Maze Chamber',  desc:'Fixed maze corridors',         price:200},
+  {id:'rings',   name:'Ring Gauntlet', desc:'Concentric ring obstacles',    price:350},
+];
+const PERKS = [
+  {id:'shieldStart', name:'Starter Shield', desc:'Begin every run with a free shield', price:500},
+];
+let selectedMap = 'classic';
+let coinsThisRun = 0;
+
+function defaultProfile(){
+  return {
+    version: PROFILE_SAVE_VERSION,
+    name:'Player', avatar:'🐍', coins:0, totalCoinsEarned:0,
+    gamesPlayed:0, bestScore:0,
+    ownedSkins:['neon'], equippedSkin:'neon',
+    ownedMaps:['classic'], equippedMap:'classic',
+    perks:[]
+  };
+}
+// Upgrades an older save (missing fields / lower version number) up to the
+// current shape. Object.assign(defaultProfile(), saved) already backfills
+// any field that's simply missing, so today this is mostly a hook — but it
+// gives future saves a real place to add one-off migration steps (e.g.
+// renaming a field, changing units) keyed off the version number instead
+// of guessing from what's present.
+function migrateProfile(p){
+  const fromVersion = p.version || 1;
+  if(fromVersion < PROFILE_SAVE_VERSION){
+    // no structural migrations needed yet beyond the defaultProfile() merge
+  }
+  p.version = PROFILE_SAVE_VERSION;
+  return p;
+}
+let profile = defaultProfile();
+// There's no real account/auth system yet — "profile" is just whatever
+// this device (or window.storage's anonymous per-user bucket) has saved,
+// which a player could edit directly. This won't stop a determined
+// tamperer, but it keeps a corrupted/edited save from crashing the game
+// or leaving the profile in a nonsensical state (negative coins, etc.)
+// once real accounts do exist, the same clamp should run server-side too.
+function sanitizeProfile(p){
+  p = migrateProfile(p);
+  p.coins = Math.max(0, Math.floor(Number(p.coins)) || 0);
+  p.totalCoinsEarned = Math.max(0, Math.floor(Number(p.totalCoinsEarned)) || 0);
+  p.gamesPlayed = Math.max(0, Math.floor(Number(p.gamesPlayed)) || 0);
+  p.bestScore = Math.max(0, Math.floor(Number(p.bestScore)) || 0);
+  if(!Array.isArray(p.ownedSkins) || !p.ownedSkins.includes('neon')) p.ownedSkins = Array.isArray(p.ownedSkins) ? [...new Set(['neon', ...p.ownedSkins])] : ['neon'];
+  if(!Array.isArray(p.ownedMaps) || !p.ownedMaps.includes('classic')) p.ownedMaps = Array.isArray(p.ownedMaps) ? [...new Set(['classic', ...p.ownedMaps])] : ['classic'];
+  if(!Array.isArray(p.perks)) p.perks = [];
+  p.name = (typeof p.name==='string' ? p.name : 'Player').slice(0,14) || 'Player';
+  return p;
+}
+async function loadProfile(){
+  let localP = null;
+  try{ localP = JSON.parse(localStorage.getItem(PROFILE_KEY)); }catch(e){}
+  if(hasOnlineStorage()){
+    try{
+      const res = await window.storage.get('profile', false); // personal, per-account
+      if(res && res.value){
+        profile = sanitizeProfile(Object.assign(defaultProfile(), JSON.parse(res.value)));
+        return;
+      }
+    }catch(e){ /* no profile saved online yet */ }
+    // first time on this account: migrate any existing local profile up, else start fresh
+    if(localP) profile = sanitizeProfile(Object.assign(defaultProfile(), localP));
+    saveProfile();
+    return;
+  }
+  if(localP) profile = sanitizeProfile(Object.assign(defaultProfile(), localP));
+}
+function saveProfile(){
+  try{ localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); }catch(e){ console.warn('Could not save local profile cache:', e); } // local cache / offline fallback
+  if(hasOnlineStorage()){
+    try{ window.storage.set('profile', JSON.stringify(profile), false).catch(()=>{}); }catch(e){}
+  }
+}
+function addCoins(n){
+  profile.coins += n;
+  if(n>0) profile.totalCoinsEarned += n;
+  updateCoinHUD();
+}
+function earnCoins(n){ addCoins(n); coinsThisRun += n; }
+function updateCoinHUD(){
+  const hud = document.getElementById('hudCoins'); if(hud) hud.textContent = profile.coins;
+  const shop = document.getElementById('shopCoins'); if(shop) shop.textContent = profile.coins;
+}
+
+// ==========================================================
+// ONLINE LEADERBOARD (Anthropic artifact shared storage, with
+// graceful fallback to the local per-device list if unavailable)
+// ==========================================================
+function hasOnlineStorage(){ return typeof window.storage !== 'undefined' && window.storage && typeof window.storage.get==='function'; }
+async function fetchOnlineLB(diff){
+  if(!hasOnlineStorage()) return null;
+  try{
+    const res = await window.storage.get('lb_'+diff, true);
+    if(!res || !res.value) return [];
+    const parsed = JSON.parse(res.value);
+    if(!Array.isArray(parsed)) return [];
+    return parsed.filter(row => row && typeof row.score==='number' && isFinite(row.score) && row.score>=0)
+      .map(row => ({ name: (typeof row.name==='string' ? row.name : 'Player').slice(0,14) || 'Player', score: row.score, ts: row.ts }));
+  }catch(e){ return null; }
+}
+async function submitOnlineScore(diff, name, sc){
+  if(!hasOnlineStorage()) return;
+  try{
+    let list = await fetchOnlineLB(diff);
+    if(list===null) list = [];
+    list.push({name:(name||'Player').slice(0,14), score:sc, ts:Date.now()});
+    list.sort((a,b)=>b.score-a.score);
+    list = list.slice(0,LB_SIZE);
+    await window.storage.set('lb_'+diff, JSON.stringify(list), true);
+  }catch(e){ /* offline — silently skip */ }
+}
+// This is client-side storage (shared window.storage, not a real
+// server), so it can't be trusted the way an actual backend would be —
+// a determined player could still edit values in devtools. This is the
+// best sanity check available without standing up a real server: reject
+// obviously-impossible submissions before they ever reach storage.
+function isValidScoreSubmission(diff, sc){
+  if(typeof sc !== 'number' || !isFinite(sc) || sc < 0) return false;
+  if(![6,9,13].includes(diff)) return false;
+  if(sc > 999999) return false; // generous upper bound on any plausible run
+  return true;
+}
+// Single place that finalizes a run's score once the player's name is
+// known — both the local list and the shared online list are written
+// here together, so neither can go out of sync with the other.
+function recordScore(diff, name, sc){
+  const cleanName = (name||'Player').toString().trim().slice(0,14) || 'Player';
+  if(!isValidScoreSubmission(diff, sc)) return;
+  addScore(diff, cleanName, sc);
+  submitOnlineScore(diff, cleanName, sc);
+}
+
+// ==========================================================
+// BACKGROUND — animated starfield + grid
+// ==========================================================
+let stars = [];
+function initStars(){
+  stars = [];
+  for(let i=0;i<90;i++){
+    stars.push({x:Math.random()*bgCanvas.width, y:Math.random()*bgCanvas.height, r:Math.random()*1.6+0.4, s:Math.random()*0.35+0.05, phase:Math.random()*10});
+  }
+}
+initStars();
+function drawBackground(t){
+  bctx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+  stars.forEach(st=>{
+    const a = 0.25 + 0.5*Math.abs(Math.sin(t*0.0006*st.s + st.phase));
+    bctx.globalAlpha = a;
+    bctx.fillStyle = css('--accent2') || '#00d1ff';
+    bctx.beginPath(); bctx.arc(st.x, st.y, st.r, 0, Math.PI*2); bctx.fill();
+  });
+  bctx.globalAlpha = 1;
+}
+
+// ==========================================================
+// SETUP / RESET
+// ==========================================================
+function genObstacles(lvl){
+  if(selectedMap==='maze') return genMazeObstacles(lvl);
+  if(selectedMap==='rings') return genRingObstacles(lvl);
+  return genClassicObstacles(lvl);
+}
+function genClassicObstacles(lvl){
+  obstacles = [];
+  const count = Math.max(0, Math.min(14, (lvl-2)*2));
+  for(let i=0;i<count;i++){
+    let p, tries=0;
+    do{
+      p = {x: 3+Math.floor(Math.random()*(COLS-6)), y: 4+Math.floor(Math.random()*(ROWS-7))};
+      tries++;
+    } while(tries<40 && (occupiedByBody(p) || nearHead(p) || occupiedObstacle(p) || occupiedByItems(p)));
+    obstacles.push(p);
+  }
+}
+function genMazeObstacles(lvl){
+  obstacles = [];
+  for(let x=4;x<COLS-4;x++){
+    if(x%6<4) obstacles.push({x,y:6});
+    if(x%6>=2) obstacles.push({x,y:ROWS-7});
+  }
+  for(let y=9;y<ROWS-9;y++){
+    if(y%5<3) obstacles.push({x:8,y});
+    if(y%5>=1) obstacles.push({x:COLS-9,y});
+  }
+  obstacles = obstacles.filter(p=>!nearHead(p));
+  const extra = Math.max(0, Math.min(6, lvl-3));
+  for(let i=0;i<extra;i++){
+    let p, tries=0;
+    do{ p={x:3+Math.floor(Math.random()*(COLS-6)), y:4+Math.floor(Math.random()*(ROWS-7))}; tries++; }
+    while(tries<30 && (occupiedByBody(p)||nearHead(p)||occupiedObstacle(p)||occupiedByItems(p)));
+    obstacles.push(p);
+  }
+}
+function genRingObstacles(lvl){
+  obstacles = [];
+  const cx = Math.floor(COLS/2), cy = Math.floor(ROWS/2);
+  const radii = [6,10,14];
+  radii.forEach(r=>{
+    const gapAngle = Math.random()*Math.PI*2;
+    for(let a=0;a<Math.PI*2;a+=0.14){
+      if(Math.abs(((a-gapAngle+Math.PI*3)%(Math.PI*2))-Math.PI) < 0.35) continue;
+      const x = Math.round(cx+Math.cos(a)*r);
+      const y = Math.round(cy+Math.sin(a)*r*0.82);
+      if(x>=0 && x<COLS && y>=0 && y<ROWS){
+        const p = {x,y};
+        if(!occupiedObstacle(p) && !nearHead(p) && !occupiedByItems(p)) obstacles.push(p);
+      }
+    }
+  });
+  const extra = Math.max(0, Math.min(4, lvl-4));
+  for(let i=0;i<extra;i++){
+    let p, tries=0;
+    do{ p={x:3+Math.floor(Math.random()*(COLS-6)), y:4+Math.floor(Math.random()*(ROWS-7))}; tries++; }
+    while(tries<30 && (occupiedByBody(p)||nearHead(p)||occupiedObstacle(p)||occupiedByItems(p)));
+    obstacles.push(p);
+  }
+}
+function occupiedObstacle(p){ return obstacles.some(o=>o.x===p.x&&o.y===p.y); }
+function occupiedByItems(p){
+  return (food && food.x===p.x && food.y===p.y) ||
+    (bonusFood && bonusFood.x===p.x && bonusFood.y===p.y) ||
+    (goldenActive && goldenFood.x===p.x && goldenFood.y===p.y) ||
+    (powerUp && powerUp.x===p.x && powerUp.y===p.y);
+}
+function nearHead(p){ const h = snake[0]; return Math.abs(h.x-p.x)<4 && Math.abs(h.y-p.y)<4; }
+function occupiedByBody(p){ return snake.some(s=>s.x===p.x&&s.y===p.y); }
+function occupiedAny(p){
+  return occupiedByBody(p) || occupiedObstacle(p) ||
+    (food && food.x===p.x && food.y===p.y) ||
+    (bonusFood && bonusFood.x===p.x && bonusFood.y===p.y) ||
+    (goldenActive && goldenFood.x===p.x && goldenFood.y===p.y) ||
+    (powerUp && powerUp.x===p.x && powerUp.y===p.y);
+}
+function safeSpawn(){
+  let p, tries=0;
+  do{ p = {x: Math.floor(Math.random()*COLS), y: Math.floor(Math.random()*ROWS)}; tries++; }
+  while(tries<200 && occupiedAny(p));
+  return p;
+}
+
+function resetGame(){
+  const midX = Math.floor(COLS/2), midY = Math.floor(ROWS/2);
+  snake = [{x:midX,y:midY},{x:midX-1,y:midY},{x:midX-2,y:midY}];
+  dir = 'RIGHT'; nextDir = 'RIGHT'; growPending = false;
+  score = 0; level = 1; speed = selectedSpeed;
+  combo = 1; comboBest = 1; comboTimer = 0;
+  particles = []; floatingTexts = [];
+  shakeMag = 0; shakeTime = 0; levelUpTimer = 0; achTimer = 0;
+  effects = freshEffects();
+  if(profile.perks && profile.perks.includes('shieldStart')) effects.shield = true;
+  obstacles = [];
+  genObstacles(level);
+  coinsThisRun = 0;
+  bonusTimer = 0; bonusFood = null;
+  goldenActive = false; goldenTimer = 0;
+  powerUp = null; powerUpTimer = 0;
+  food = safeSpawn();
+  lastTick = performance.now(); tickAccum = 0;
+  document.getElementById('hudScore').textContent = '0';
+  document.getElementById('hudLevel').textContent = '1';
+  document.getElementById('hudHigh').textContent = highForDiff(selectedSpeed);
+  updateCoinHUD();
+  updateEffectBadges();
+}
+
+// ==========================================================
+// PARTICLES / FX
+// ==========================================================
+function addParticles(x,y,color,n){
+  for(let i=0;i<n;i++){
+    const ang = Math.random()*Math.PI*2, spd = 1+Math.random()*3.2;
+    particles.push({x,y,vx:Math.cos(ang)*spd,vy:Math.sin(ang)*spd,life:22+Math.random()*16,maxLife:38,color});
+  }
+}
+function updateParticles(){
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.05; p.vx*=0.98; p.life--; });
+  particles = particles.filter(p=>p.life>0);
+}
+function drawParticles(){
+  particles.forEach(p=>{
+    const a = Math.max(0,p.life/p.maxLife);
+    ctx.globalAlpha = a; ctx.fillStyle = p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,3,0,Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+}
+function addFloatingText(x,y,text,color){ floatingTexts.push({x,y,text,color,life:48,maxLife:48}); }
+function updateFloatingTexts(){ floatingTexts.forEach(f=>{ f.y-=0.65; f.life--; }); floatingTexts = floatingTexts.filter(f=>f.life>0); }
+function drawFloatingTexts(){
+  floatingTexts.forEach(f=>{
+    const a = Math.max(0,f.life/f.maxLife);
+    ctx.globalAlpha = a; ctx.fillStyle = f.color; ctx.font = '900 16px Segoe UI, Arial';
+    ctx.textAlign = 'center'; ctx.shadowColor = f.color; ctx.shadowBlur = 8;
+    ctx.fillText(f.text, f.x, f.y);
+  });
+  ctx.globalAlpha = 1; ctx.shadowBlur = 0; ctx.textAlign = 'left';
+}
+function startShake(mag,dur){ shakeMag = mag||6; shakeTime = dur||8; }
+function unlockAchievement(text){ achMsg = text; achTimer = 170; document.getElementById('achMsg').textContent = text; document.getElementById('achievement').classList.add('show'); }
+
+// ==========================================================
+// EFFECT BADGES
+// ==========================================================
+function updateEffectBadges(){
+  const el = document.getElementById('effectBadges');
+  if(!el) return;
+  const now = performance.now();
+  const items = [];
+  if(effects.shield) items.push('🛡 Shield');
+  if(effects.speedUntil>now) items.push('⚡ Speed');
+  if(effects.slowUntil>now) items.push('🐢 Slow-Mo');
+  if(effects.multUntil>now) items.push('✖2 Score');
+  if(effects.magnetUntil>now) items.push('🧲 Magnet');
+  el.innerHTML = items.map(t=>`<div class="badge">${t}</div>`).join('');
+}
+
+// ==========================================================
+// GAME TICK
+// ==========================================================
+function currentInterval(){
+  let ticksPerSec = speed;
+  if(effects.speedUntil > performance.now()) ticksPerSec *= 1.6;
+  if(effects.slowUntil > performance.now()) ticksPerSec *= 0.55;
+  return 1000/ticksPerSec;
+}
+
+function changeDirection(nd){
+  const opposite = {UP:'DOWN',DOWN:'UP',LEFT:'RIGHT',RIGHT:'LEFT'};
+  if(opposite[nd]===dir) return;
+  nextDir = nd;
+}
+
+function head(){ return snake[0]; }
+
+function moveSnake(){
+  dir = nextDir;
+  const h = head();
+  let nx = h.x, ny = h.y;
+  if(dir==='UP') ny--; else if(dir==='DOWN') ny++; else if(dir==='LEFT') nx--; else nx++;
+
+  if(wrapWalls){
+    nx = (nx+COLS)%COLS; ny = (ny+ROWS)%ROWS;
+  } else if(nx<0 || nx>=COLS || ny<0 || ny>=ROWS){
+    return handleCrash();
+  }
+
+  // The tail cell only "vacates" this tick if the snake isn't growing.
+  // While growPending is true the tail stays put, so it must still count
+  // as a collidable body segment (previously it was always excluded,
+  // letting the snake grow straight through its own tail).
+  const bodyToCheck = growPending ? snake : snake.slice(0, -1);
+  if(occupiedObstacle({x:nx,y:ny}) || bodyToCheck.some(s=> s.x===nx && s.y===ny)){
+    return handleCrash();
+  }
+
+  snake.unshift({x:nx,y:ny});
+  if(!growPending){ snake.pop(); } else { growPending = false; }
+}
+
+function handleCrash(){
+  if(effects.shield){
+    effects.shield = false;
+    startShake(10,10);
+    addParticles(head().x*CELL+CELL/2, head().y*CELL+CELL/2, css('--accent2'), 26);
+    unlockAchievement('Shield absorbed the hit!');
+    // bounce back: reverse direction softly by cancelling the move
+    return;
+  }
+  endGame();
+}
+
+function magnetPull(){
+  if(effects.magnetUntil <= performance.now()) return;
+  const h = head();
+  [food, bonusFood, (goldenActive?goldenFood:null)].forEach(f=>{
+    if(!f) return;
+    const dx = f.x-h.x, dy = f.y-h.y;
+    if(Math.abs(dx)+Math.abs(dy) <= 6){
+      if(Math.abs(dx)>Math.abs(dy)) f.x += dx>0?-1:1;
+      else if(dy!==0) f.y += dy>0?-1:1;
+      f.x = Math.max(0,Math.min(COLS-1,f.x));
+      f.y = Math.max(0,Math.min(ROWS-1,f.y));
+    }
+  });
+}
+
+function scoreMultiplier(){
+  let m = combo;
+  if(effects.multUntil > performance.now()) m *= 2;
+  return m;
+}
+
+function spawnPowerUpMaybe(){
+  if(powerUp || Math.random() > 0.012) return;
+  const types = ['speed','slow','shield','mult','magnet'];
+  const type = types[Math.floor(Math.random()*types.length)];
+  powerUp = Object.assign(safeSpawn(), {type});
+  powerUpTimer = 260; // ticks-ish (frames) before despawn
+}
+
+const POWER_META = {
+  speed:{icon:'⚡', color:'#ffcc33', label:'Speed Boost!'},
+  slow:{icon:'🐢', color:'#00d1ff', label:'Slow-Mo!'},
+  shield:{icon:'🛡', color:'#39ffb0', label:'Shield Up!'},
+  mult:{icon:'✖2', color:'#ff2fd6', label:'Score x2!'},
+  magnet:{icon:'🧲', color:'#ff7a45', label:'Magnet On!'}
+};
+
+function applyPowerUp(type){
+  const now = performance.now();
+  sndPower();
+  if(type==='speed') effects.speedUntil = now+6000;
+  else if(type==='slow') effects.slowUntil = now+6000;
+  else if(type==='shield') effects.shield = true;
+  else if(type==='mult') effects.multUntil = now+8000;
+  else if(type==='magnet') effects.magnetUntil = now+7000;
+  unlockAchievement(POWER_META[type].label);
+  updateEffectBadges();
+}
+
+function gameTick(){
+  moveSnake();
+  if(state!=='playing') return; // crashed without shield
+  magnetPull();
+
+  const h = head();
+
+  if(h.x===food.x && h.y===food.y){
+    growPending = true; sndEat();
+    combo = Math.min(combo+1, 20); comboBest = Math.max(comboBest, combo); comboTimer = 90;
+    const pts = 10*scoreMultiplier();
+    score += pts;
+    addFloatingText(food.x*CELL+CELL/2, food.y*CELL, '+'+pts, css('--accent'));
+    addParticles(food.x*CELL+CELL/2, food.y*CELL+CELL/2, css('--food'), 16);
+    startShake(4,6);
+    food = safeSpawn();
+    showCombo();
+    earnCoins(1);
+  }
+
+  if(bonusFood && h.x===bonusFood.x && h.y===bonusFood.y){
+    growPending = true; sndBonus();
+    const pts = 50*scoreMultiplier();
+    score += pts;
+    addFloatingText(bonusFood.x*CELL+CELL/2, bonusFood.y*CELL, '+'+pts, css('--bonus'));
+    addParticles(bonusFood.x*CELL+CELL/2, bonusFood.y*CELL+CELL/2, css('--bonus'), 28);
+    startShake(8,10);
+    bonusFood = null; bonusTimer = 0;
+    earnCoins(5);
+  }
+
+  if(goldenActive && h.x===goldenFood.x && h.y===goldenFood.y){
+    growPending = true; sndGolden();
+    const pts = 150*scoreMultiplier();
+    score += pts;
+    addFloatingText(goldenFood.x*CELL+CELL/2, goldenFood.y*CELL, '+'+pts, css('--golden'));
+    addParticles(goldenFood.x*CELL+CELL/2, goldenFood.y*CELL+CELL/2, css('--golden'), 40);
+    startShake(12,14);
+    goldenActive = false;
+    unlockAchievement('Golden Hunter!');
+    earnCoins(15);
+  }
+
+  if(powerUp && h.x===powerUp.x && h.y===powerUp.y){
+    applyPowerUp(powerUp.type);
+    addParticles(powerUp.x*CELL+CELL/2, powerUp.y*CELL+CELL/2, POWER_META[powerUp.type].color, 30);
+    startShake(6,8);
+    powerUp = null;
+  }
+
+  // spawn bonus occasionally
+  if(!bonusFood && Math.random() < 0.006){ bonusFood = safeSpawn(); bonusTimer = 200; }
+  if(bonusFood){ bonusTimer--; if(bonusTimer<=0){ bonusFood=null; } }
+
+  if(score>0 && Math.floor(score/300) > Math.floor((score-1)/300) && !goldenActive){
+    goldenActive = true; goldenFood = safeSpawn(); goldenTimer = 220; // ~ despawns after a while, like bonus food
+  }
+  if(goldenActive){ goldenTimer--; if(goldenTimer<=0){ goldenActive = false; } }
+
+  spawnPowerUpMaybe();
+  if(powerUp){ powerUpTimer--; if(powerUpTimer<=0) powerUp=null; }
+
+  if(highForDiffLive() < score) document.getElementById('hudHigh').textContent = score;
+
+  const newLevel = Math.floor(score/120)+1;
+  if(newLevel>level){
+    level = newLevel;
+    speed = selectedSpeed + (level-1)*0.8;
+    levelUpTimer = 55; sndLevel();
+    genObstacles(level);
+    earnCoins(5);
+    document.getElementById('hudLevel').textContent = level;
+    const lvlEl = document.getElementById('levelup'); lvlEl.classList.add('show');
+    if(level%3===0) unlockAchievement('Level '+level+' reached!');
+  }
+
+  document.getElementById('hudScore').textContent = score;
+  updateEffectBadges();
+}
+function highForDiffLive(){ return parseInt(document.getElementById('hudHigh').textContent,10)||0; }
+function showCombo(){
+  const w = document.getElementById('comboWrap');
+  document.getElementById('comboVal').textContent = combo;
+  w.classList.toggle('show', combo>1);
+}
+
+// ==========================================================
+// RENDER
+// ==========================================================
+function lerp(a,b,t){ return a+(b-a)*t; }
+
+function drawGrid(){
+  ctx.strokeStyle = css('--grid-line') || 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for(let x=0;x<=COLS;x++){ ctx.beginPath(); ctx.moveTo(x*CELL,0); ctx.lineTo(x*CELL,HEIGHT); ctx.stroke(); }
+  for(let y=0;y<=ROWS;y++){ ctx.beginPath(); ctx.moveTo(0,y*CELL); ctx.lineTo(WIDTH,y*CELL); ctx.stroke(); }
+}
+
+function drawObstacles(){
+  obstacles.forEach(o=>{
+    const x=o.x*CELL, y=o.y*CELL;
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fillRect(x+1,y+1,CELL-2,CELL-2);
+    ctx.strokeStyle = 'rgba(255,80,100,0.55)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(x+2,y+2,CELL-4,CELL-4);
+  });
+}
+
+function drawOrb(px,py,r,colorInner,colorOuter,glow){
+  const g = ctx.createRadialGradient(px,py,0,px,py,r);
+  g.addColorStop(0, colorInner); g.addColorStop(1, colorOuter);
+  ctx.save();
+  ctx.shadowColor = glow||colorInner; ctx.shadowBlur = 14;
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+
+function drawFood(t){
+  const pulse = 1+0.12*Math.sin(t*0.006);
+  if(food){
+    const px=food.x*CELL+CELL/2, py=food.y*CELL+CELL/2;
+    drawOrb(px,py,(CELL/2-2)*pulse, '#fff', css('--food'), css('--food'));
+  }
+  if(bonusFood){
+    const px=bonusFood.x*CELL+CELL/2, py=bonusFood.y*CELL+CELL/2;
+    ctx.save();
+    ctx.translate(px,py); ctx.rotate(t*0.002);
+    drawStar(0,0,5,(CELL/2)*pulse,(CELL/4), css('--bonus'));
+    ctx.restore();
+  }
+  if(goldenActive){
+    const px=goldenFood.x*CELL+CELL/2, py=goldenFood.y*CELL+CELL/2;
+    drawOrb(px,py,(CELL/2)*(1+0.22*Math.sin(t*0.01)), '#fff', css('--golden'), css('--golden'));
+  }
+  if(powerUp){
+    const meta = POWER_META[powerUp.type];
+    const px=powerUp.x*CELL+CELL/2, py=powerUp.y*CELL+CELL/2;
+    ctx.save();
+    ctx.shadowColor = meta.color; ctx.shadowBlur = 16;
+    ctx.fillStyle = meta.color;
+    ctx.beginPath(); ctx.arc(px,py,(CELL/2-1)*pulse,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.fillStyle = '#0a0e1a'; ctx.font='900 12px Segoe UI'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(meta.icon, px, py+1);
+    ctx.restore();
+  }
+}
+function drawStar(cx,cy,spikes,outerR,innerR,color){
+  let rot = Math.PI/2*3, x=cx, y=cy;
+  const step = Math.PI/spikes;
+  ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 14; ctx.fillStyle = color;
+  ctx.beginPath(); ctx.moveTo(cx, cy-outerR);
+  for(let i=0;i<spikes;i++){
+    x = cx + Math.cos(rot)*outerR; y = cy + Math.sin(rot)*outerR; ctx.lineTo(x,y); rot+=step;
+    x = cx + Math.cos(rot)*innerR; y = cy + Math.sin(rot)*innerR; ctx.lineTo(x,y); rot+=step;
+  }
+  ctx.lineTo(cx,cy-outerR); ctx.closePath(); ctx.fill(); ctx.restore();
+}
+
+function catmullRom(p0,p1,p2,p3,t){
+  const t2=t*t, t3=t2*t;
+  return {
+    x: 0.5*((2*p1.x)+(-p0.x+p2.x)*t+(2*p0.x-5*p1.x+4*p2.x-p3.x)*t2+(-p0.x+3*p1.x-3*p2.x+p3.x)*t3),
+    y: 0.5*((2*p1.y)+(-p0.y+p2.y)*t+(2*p0.y-5*p1.y+4*p2.y-p3.y)*t2+(-p0.y+3*p1.y-3*p2.y+p3.y)*t3)
+  };
+}
+
+// Builds a smooth, densely-subdivided spine through the snake's segments
+// (head first, tail last) so the body can be drawn as a curved, tapered
+// ribbon instead of a chain of blocky squares.
+function buildSnakePath(progress){
+  const n = snake.length;
+  const raw = [];
+  for(let i=0;i<n;i++){
+    const s = snake[i];
+    let dx=0, dy=0;
+    if(i===0){
+      if(dir==='UP') dy=-1; else if(dir==='DOWN') dy=1; else if(dir==='LEFT') dx=-1; else dx=1;
+    }
+    raw.push({x:(s.x + dx*progress)*CELL + CELL/2, y:(s.y + dy*progress)*CELL + CELL/2});
+  }
+  if(raw.length<2) return raw;
+  const padded = [raw[0], ...raw, raw[raw.length-1]];
+  const steps = n>34 ? 3 : (n>18 ? 5 : 8);
+  const dense = [];
+  for(let i=1;i<padded.length-2;i++){
+    const p0=padded[i-1], p1=padded[i], p2=padded[i+1], p3=padded[i+2];
+    for(let j=0;j<steps;j++) dense.push(catmullRom(p0,p1,p2,p3, j/steps));
+  }
+  dense.push(raw[raw.length-1]);
+  return dense;
+}
+
+function pathTangent(dense, i){
+  const a = dense[Math.max(0,i-1)], b = dense[Math.min(dense.length-1,i+1)];
+  const dx=b.x-a.x, dy=b.y-a.y;
+  const len = Math.hypot(dx,dy)||1;
+  return {x:dx/len, y:dy/len};
+}
+
+// Body radius as a fraction of position along the spine (0=head, 1=tail):
+// a quick ramp up to full girth behind the head, steady through the body,
+// then a smooth taper down to a thin tail tip.
+function snakeWidth(t){
+  const baseR = CELL/2 - 1.3;
+  const headTaper = Math.min(1, t/0.07);
+  const tailTaper = t>0.8 ? Math.max(0.12, 1-((t-0.8)/0.2)) : 1;
+  return Math.max(1.1, baseR*headTaper*tailTaper);
+}
+
+function drawScaleMark(cx,cy,tan,nrm,size,color){
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(cx+tan.x*size, cy+tan.y*size);
+  ctx.lineTo(cx+nrm.x*size*0.62, cy+nrm.y*size*0.62);
+  ctx.lineTo(cx-tan.x*size, cy-tan.y*size);
+  ctx.lineTo(cx-nrm.x*size*0.62, cy-nrm.y*size*0.62);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawSnake(progress, now){
+  const dense = buildSnakePath(progress);
+  if(dense.length<2) return;
+  const total = dense.length-1;
+  const colA = css('--snake-a'), colB = css('--snake-b');
+
+  const left=[], right=[], widths=[];
+  for(let i=0;i<dense.length;i++){
+    const t = i/total;
+    const tan = pathTangent(dense,i);
+    const nrm = {x:-tan.y, y:tan.x};
+    const w = snakeWidth(t);
+    widths.push(w);
+    left.push({x:dense[i].x+nrm.x*w, y:dense[i].y+nrm.y*w});
+    right.push({x:dense[i].x-nrm.x*w, y:dense[i].y-nrm.y*w});
+  }
+
+  ctx.save();
+  ctx.shadowColor = colA; ctx.shadowBlur = 10;
+  const grad = ctx.createLinearGradient(dense[0].x,dense[0].y,dense[dense.length-1].x,dense[dense.length-1].y);
+  grad.addColorStop(0, css('--head-glow'));
+  grad.addColorStop(0.12, colA);
+  grad.addColorStop(1, colB);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.moveTo(left[0].x,left[0].y);
+  for(let i=1;i<left.length;i++) ctx.lineTo(left[i].x,left[i].y);
+  for(let i=right.length-1;i>=0;i--) ctx.lineTo(right[i].x,right[i].y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // cylindrical shading: a soft highlight running along one edge
+  ctx.globalAlpha = 0.22;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.moveTo(dense[0].x,dense[0].y);
+  for(let i=1;i<dense.length;i++){
+    const w = widths[i]*0.35;
+    const tan = pathTangent(dense,i), nrm={x:-tan.y,y:tan.x};
+    ctx.lineTo(dense[i].x+nrm.x*w, dense[i].y+nrm.y*w);
+  }
+  for(let i=dense.length-1;i>=0;i--){
+    const w = widths[i]*0.08;
+    const tan = pathTangent(dense,i), nrm={x:-tan.y,y:tan.x};
+    ctx.lineTo(dense[i].x+nrm.x*w, dense[i].y+nrm.y*w);
+  }
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // scale / blotch pattern along the back, alternating sides like real skin markings
+  const markStep = dense.length>140 ? 5 : 3;
+  for(let i=6;i<dense.length-8;i+=markStep){
+    const w = widths[i];
+    if(w<3) continue;
+    const tan = pathTangent(dense,i), nrm={x:-tan.y,y:tan.x};
+    const side = (Math.floor(i/markStep)%2===0) ? 1 : -1;
+    const cx = dense[i].x + nrm.x*w*0.35*side;
+    const cy = dense[i].y + nrm.y*w*0.35*side;
+    drawScaleMark(cx,cy,tan,nrm, w*0.42, 'rgba(6,10,16,0.35)');
+  }
+
+  // subtle darker belly line down the centerline
+  ctx.globalAlpha = 0.18;
+  ctx.strokeStyle = '#000814';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(dense[0].x,dense[0].y);
+  for(let i=1;i<dense.length;i++) ctx.lineTo(dense[i].x,dense[i].y);
+  ctx.stroke();
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  drawSnakeHead(dense, widths, now||0);
+}
+
+function drawSnakeHead(dense, widths, now){
+  const p = dense[0];
+  const tan = pathTangent(dense,0);
+  const nrm = {x:-tan.y, y:tan.x};
+  const hw = Math.max(widths[0], CELL/2-0.5);
+  const len = CELL*0.95;
+
+  ctx.save();
+  ctx.shadowColor = css('--head-glow'); ctx.shadowBlur = 16;
+  ctx.fillStyle = css('--head-glow');
+  const back = {x:p.x-tan.x*hw*0.9, y:p.y-tan.y*hw*0.9};
+  const tip  = {x:p.x+tan.x*len,     y:p.y+tan.y*len};
+  const l1 = {x:back.x+nrm.x*hw, y:back.y+nrm.y*hw};
+  const r1 = {x:back.x-nrm.x*hw, y:back.y-nrm.y*hw};
+  const lm = {x:p.x+tan.x*len*0.35+nrm.x*hw*1.05, y:p.y+tan.y*len*0.35+nrm.y*hw*1.05};
+  const rm = {x:p.x+tan.x*len*0.35-nrm.x*hw*1.05, y:p.y+tan.y*len*0.35-nrm.y*hw*1.05};
+  ctx.beginPath();
+  ctx.moveTo(back.x,back.y);
+  ctx.quadraticCurveTo(l1.x,l1.y, lm.x,lm.y);
+  ctx.quadraticCurveTo((lm.x+tip.x)/2+nrm.x*hw*0.2, (lm.y+tip.y)/2+nrm.y*hw*0.2, tip.x,tip.y);
+  ctx.quadraticCurveTo((rm.x+tip.x)/2-nrm.x*hw*0.2, (rm.y+tip.y)/2-nrm.y*hw*0.2, rm.x,rm.y);
+  ctx.quadraticCurveTo(r1.x,r1.y, back.x,back.y);
+  ctx.closePath();
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  const eyeOff = hw*0.62, eyeFwd = len*0.22;
+  [1,-1].forEach(side=>{
+    const ex = p.x + tan.x*eyeFwd + nrm.x*eyeOff*side;
+    const ey = p.y + tan.y*eyeFwd + nrm.y*eyeOff*side;
+    ctx.fillStyle = '#fffdf2';
+    ctx.beginPath(); ctx.arc(ex,ey, hw*0.32, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#0a0e1a';
+    ctx.beginPath(); ctx.arc(ex+tan.x*hw*0.08, ey+tan.y*hw*0.08, hw*0.17, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.beginPath(); ctx.arc(ex+tan.x*hw*0.13-nrm.x*hw*0.05*side, ey+tan.y*hw*0.13-nrm.y*hw*0.05*side, hw*0.06,0,Math.PI*2); ctx.fill();
+  });
+
+  [1,-1].forEach(side=>{
+    const nx = p.x + tan.x*len*0.78 + nrm.x*hw*0.28*side;
+    const ny = p.y + tan.y*len*0.78 + nrm.y*hw*0.28*side;
+    ctx.fillStyle = 'rgba(10,14,26,0.55)';
+    ctx.beginPath(); ctx.arc(nx,ny,hw*0.08,0,Math.PI*2); ctx.fill();
+  });
+  ctx.restore();
+
+  // forked tongue, flicks out periodically
+  const cycle = now % 1800;
+  if(cycle < 380){
+    const flick = cycle<190 ? cycle/190 : 1-((cycle-190)/190);
+    const tLen = len*0.9*flick;
+    const baseX = p.x+tan.x*len, baseY = p.y+tan.y*len;
+    const forkSpread = hw*0.5*flick;
+    ctx.save();
+    ctx.strokeStyle = '#ff4d6d';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(baseX,baseY);
+    ctx.lineTo(baseX+tan.x*tLen*0.7, baseY+tan.y*tLen*0.7);
+    ctx.moveTo(baseX+tan.x*tLen*0.7, baseY+tan.y*tLen*0.7);
+    ctx.lineTo(baseX+tan.x*tLen+nrm.x*forkSpread, baseY+tan.y*tLen+nrm.y*forkSpread);
+    ctx.moveTo(baseX+tan.x*tLen*0.7, baseY+tan.y*tLen*0.7);
+    ctx.lineTo(baseX+tan.x*tLen-nrm.x*forkSpread, baseY+tan.y*tLen-nrm.y*forkSpread);
+    ctx.stroke();
+    ctx.restore();
+  }
+}
+
+function render(now, tickProgress){
+  ctx.clearRect(0,0,WIDTH,HEIGHT);
+  ctx.save();
+  if(shakeTime>0){
+    const dx = (Math.random()-0.5)*shakeMag, dy = (Math.random()-0.5)*shakeMag;
+    ctx.translate(dx,dy);
+    shakeTime--;
+  }
+  drawGrid();
+  drawObstacles();
+  drawFood(now);
+  drawSnake(tickProgress, now);
+  drawParticles();
+  drawFloatingTexts();
+  ctx.restore();
+
+  // These UI timers must only run during active play — render() is also
+  // called while paused (to keep drawing the frozen frame), and previously
+  // these kept counting down in the background, so combo/level-up/achievement
+  // banners could silently expire while the game was paused.
+  if(state==='playing'){
+    if(comboTimer>0){ comboTimer--; if(comboTimer<=0){ combo=1; document.getElementById('comboWrap').classList.remove('show'); } }
+    if(levelUpTimer>0){ levelUpTimer--; if(levelUpTimer<=0) document.getElementById('levelup').classList.remove('show'); }
+    if(achTimer>0){ achTimer--; if(achTimer<=0) document.getElementById('achievement').classList.remove('show'); }
+  }
+}
+
+// ==========================================================
+// MAIN LOOP
+// ==========================================================
+function loop(now){
+  try{
+    drawBackground(now);
+    if(state==='playing'){
+      if(!lastTick) lastTick = now;
+      tickAccum += now-lastTick;
+      lastTick = now;
+      const interval = currentInterval();
+      let safety=0;
+      while(tickAccum >= interval && safety<5){
+        gameTick();
+        tickAccum -= interval;
+        safety++;
+        if(state!=='playing') break;
+      }
+      const progress = state==='playing'? Math.min(1, tickAccum/interval) : 0;
+      updateParticles(); updateFloatingTexts();
+      render(now, progress);
+    } else if(state==='paused'){
+      render(now, 0);
+    }
+  }catch(err){
+    // A single bad frame shouldn't take down the whole game — log it and
+    // keep the loop alive rather than silently freezing on the player.
+    console.error('Game loop error:', err);
+  }
+  rafId = requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+// ==========================================================
+// GAME OVER / END
+// ==========================================================
+function endGame(){
+  sndCrash(); startShake(14,16);
+  addParticles(head().x*CELL+CELL/2, head().y*CELL+CELL/2, css('--danger'), 46);
+  const diff = selectedSpeed;
+  const prevHigh = highForDiff(diff);
+
+  const endBonus = Math.floor(score/50);
+  if(endBonus>0) earnCoins(endBonus);
+  profile.gamesPlayed += 1;
+  profile.bestScore = Math.max(profile.bestScore, score);
+  saveProfile();
+
+  document.getElementById('goScore').textContent = score;
+  document.getElementById('goHigh').textContent = Math.max(prevHigh, score);
+  document.getElementById('goLevel').textContent = level;
+  document.getElementById('goCombo').textContent = 'x'+comboBest;
+  document.getElementById('goCoins').textContent = '+'+coinsThisRun;
+  document.getElementById('newHigh').classList.toggle('hidden', score<=prevHigh);
+  state = 'gameover';
+
+  if(score > prevHigh && score>0){
+    // Wait for the player to actually enter a name before recording the
+    // score — previously this submitted online immediately using the
+    // stale old profile.name, before the player ever got the chance to
+    // type a new one.
+    playerName = (profile.name && profile.name!=='Player') ? profile.name : '';
+    setTimeout(()=>goto('name'), 550);
+  } else {
+    // Not a new personal best, so there's no name-entry screen — but the
+    // run still deserves a spot on the leaderboard lists (previously only
+    // personal bests were ever recorded locally).
+    if(score>0) recordScore(diff, profile.name, score);
+    setTimeout(()=>{ showScreen('gameOverOverlay'); document.getElementById('gameOverOverlay').classList.remove('hidden'); }, 380);
+  }
+}
+
+// ==========================================================
+// SCREEN MANAGEMENT
+// ==========================================================
+const screens = ['mainMenu','settingsScreen','instrScreen','lbScreen','diffScreen','nameScreen','mapScreen','shopScreen','profileScreen'];
+function showScreen(id){
+  screens.forEach(s=> document.getElementById(s).classList.add('hidden'));
+  document.getElementById('gameOverOverlay').classList.add('hidden');
+  if(id) document.getElementById(id).classList.remove('hidden');
+}
+
+function goto(next){
+  sndClick();
+  if(next==='menu'){ state='menu'; showScreen('mainMenu'); document.getElementById('hudTop').classList.add('hidden'); document.getElementById('pauseBtn').classList.add('hidden'); document.getElementById('comboWrap').classList.remove('show'); document.getElementById('pauseOverlay').classList.add('hidden'); }
+  else if(next==='mapSelect'){ state='mapSelect'; showScreen('mapScreen'); renderMapSelect(); }
+  else if(next==='difficulty'){ state='difficulty'; showScreen('diffScreen'); }
+  else if(next==='instructions'){ state='instructions'; showScreen('instrScreen'); }
+  else if(next==='settings'){ state='settings'; showScreen('settingsScreen'); updateSettingsUI(); }
+  else if(next==='leaderboard'){ state='leaderboard'; showScreen('lbScreen'); renderLeaderboard(); }
+  else if(next==='shop'){ state='shop'; showScreen('shopScreen'); renderShop(); updateCoinHUD(); }
+  else if(next==='profile'){ state='profile'; showScreen('profileScreen'); renderProfile(); }
+  else if(next==='name'){ state='name'; showScreen('nameScreen'); updateNameBox(); }
+  else if(next==='playing'){
+    showScreen(null);
+    document.getElementById('gameOverOverlay').classList.add('hidden');
+    document.getElementById('hudTop').classList.remove('hidden');
+    document.getElementById('pauseBtn').classList.remove('hidden');
+    document.getElementById('pauseBtn').textContent = '⏸';
+    document.getElementById('pauseOverlay').classList.add('hidden');
+    resetGame();
+    state = 'playing';
+  }
+}
+
+document.getElementById('btnStart').onclick = ()=>goto('mapSelect');
+document.getElementById('btnInstr').onclick = ()=>goto('instructions');
+document.getElementById('btnLB').onclick = ()=>goto('leaderboard');
+document.getElementById('btnInstrBack').onclick = ()=>goto('menu');
+document.getElementById('btnLBBack').onclick = ()=>goto('menu');
+document.getElementById('btnLBRefresh').onclick = ()=>{ const t=document.querySelector('.lb-tab.active'); renderLeaderboard(parseInt(t?t.dataset.diff:6,10)); };
+document.getElementById('btnSettings').onclick = ()=>goto('settings');
+document.getElementById('btnSettingsBack').onclick = ()=>goto('menu');
+document.getElementById('btnMapBack').onclick = ()=>goto('menu');
+document.getElementById('btnShop').onclick = ()=>goto('shop');
+document.getElementById('btnShopBack').onclick = ()=>goto('menu');
+document.getElementById('btnProfile').onclick = ()=>goto('profile');
+document.getElementById('btnProfileBack').onclick = ()=>goto('menu');
+document.getElementById('btnResetProgress').onclick = ()=>{
+  if(!window.confirm('Reset all progress? This clears coins, owned skins/maps/perks, and your best score on this device. This cannot be undone.')) return;
+  profile = defaultProfile();
+  saveProfile();
+  theme = 'neon'; selectedMap = 'classic';
+  applyTheme(); saveSettings();
+  try{ localStorage.removeItem(LB_KEY); }catch(e){}
+  updateCoinHUD(); renderProfile(); sndClick();
+  unlockAchievement('Progress reset');
+};
+document.getElementById('restartBtn').onclick = ()=>goto('playing');
+document.getElementById('menuBtn2').onclick = ()=>goto('menu');
+
+document.querySelectorAll('#diffScreen [data-speed]').forEach(btn=>{
+  btn.onclick = ()=>{ selectedSpeed = parseInt(btn.dataset.speed,10); goto('playing'); };
+});
+
+// theme / skin picker (gated by shop ownership)
+document.querySelectorAll('.theme-dot').forEach(dot=>{
+  dot.onclick = ()=>{
+    const id = dot.dataset.theme;
+    // Settings must respect shop ownership — previously this let players
+    // equip any skin here even if they'd never bought it.
+    if(!profile.ownedSkins.includes(id)){
+      unlockAchievement('Locked — buy in Shop 🛒'); sndClick(); return;
+    }
+    theme = id; profile.equippedSkin = id;
+    applyTheme(); saveSettings(); saveProfile(); updateSettingsUI(); sndClick();
+  };
+});
+function applyTheme(){ document.documentElement.setAttribute('data-theme', theme); }
+
+// ==========================================================
+// MAP SELECT
+// ==========================================================
+function renderMapSelect(){
+  const el = document.getElementById('mapList');
+  el.innerHTML = '';
+  MAPS.forEach(m=>{
+    const owned = profile.ownedMaps.includes(m.id);
+    const btn = document.createElement('button');
+    btn.className = 'mbtn' + (owned?'':' locked-map');
+    btn.textContent = (owned?'':'🔒 ') + m.name + (selectedMap===m.id?' ✓':'');
+    btn.onclick = ()=>{
+      if(!owned){ unlockAchievement('Locked — buy in Shop 🛒'); sndClick(); return; }
+      selectedMap = m.id; profile.equippedMap = m.id; saveProfile(); sndClick(); goto('difficulty');
+    };
+    el.appendChild(btn);
+  });
+}
+
+// ==========================================================
+// SHOP
+// ==========================================================
+function shopRow(item, kind){
+  const owned = kind==='skin' ? profile.ownedSkins.includes(item.id)
+    : kind==='map' ? profile.ownedMaps.includes(item.id)
+    : profile.perks.includes(item.id);
+  const equipped = kind==='skin' ? profile.equippedSkin===item.id
+    : kind==='map' ? selectedMap===item.id : false;
+  const row = document.createElement('div');
+  row.className = 'shop-row';
+  const icon = kind==='skin' ? '🎨' : kind==='map' ? '🗺️' : '✨';
+  let btnHtml;
+  if(kind==='perk'){
+    btnHtml = owned ? `<button class="shop-btn owned" disabled>Owned</button>` : `<button class="shop-btn" data-buy="${kind}:${item.id}">${item.price} 🪙</button>`;
+  } else if(owned && equipped){
+    btnHtml = `<button class="shop-btn equipped" disabled>Equipped</button>`;
+  } else if(owned){
+    btnHtml = `<button class="shop-btn" data-equip="${kind}:${item.id}">Equip</button>`;
+  } else {
+    btnHtml = `<button class="shop-btn" data-buy="${kind}:${item.id}">${item.price} 🪙</button>`;
+  }
+  row.innerHTML = `<div class="icon">${icon}</div><div class="txt">${item.name}<small>${item.desc}</small></div>${btnHtml}`;
+  return row;
+}
+function renderShop(){
+  const el = document.getElementById('shopList');
+  el.innerHTML = '';
+  const section = (title)=>{ const h=document.createElement('div'); h.className='shop-section-hdr'; h.textContent=title; el.appendChild(h); };
+  section('SKINS');
+  SKINS.forEach(s=> el.appendChild(shopRow(s,'skin')));
+  section('MAPS');
+  MAPS.forEach(m=> el.appendChild(shopRow(m,'map')));
+  section('PERKS');
+  PERKS.forEach(p=> el.appendChild(shopRow(p,'perk')));
+}
+function buyItem(kind,id){
+  const list = kind==='skin'?SKINS:kind==='map'?MAPS:PERKS;
+  const item = list.find(x=>x.id===id);
+  if(!item) return;
+  // Defensive re-check: the shop UI already hides the buy button once an
+  // item is owned, but that's only a rendering safeguard — buyItem() itself
+  // had no guard, so a stale render (or anything else triggering this path)
+  // could silently push a duplicate id into the owned list and waste coins.
+  const ownedList = kind==='skin' ? profile.ownedSkins : kind==='map' ? profile.ownedMaps : profile.perks;
+  if(ownedList.includes(id)){ renderShop(); return; }
+  if(profile.coins < item.price){ unlockAchievement('Not enough coins 🪙'); sndClick(); return; }
+  if(!window.confirm(`Buy "${item.name}" for ${item.price} coins?`)) return;
+  profile.coins -= item.price;
+  ownedList.push(id);
+  saveProfile(); updateCoinHUD(); sndPower(); unlockAchievement('Purchased!');
+  renderShop();
+}
+function equipItem(kind,id){
+  if(kind==='skin'){ theme=id; profile.equippedSkin=id; applyTheme(); saveSettings(); }
+  else if(kind==='map'){ selectedMap=id; profile.equippedMap=id; }
+  saveProfile(); sndClick(); renderShop(); updateSettingsUI();
+}
+document.getElementById('shopList').addEventListener('click',(e)=>{
+  const buyBtn = e.target.closest('[data-buy]');
+  const eqBtn = e.target.closest('[data-equip]');
+  if(buyBtn){ const [kind,id]=buyBtn.dataset.buy.split(':'); buyItem(kind,id); }
+  else if(eqBtn){ const [kind,id]=eqBtn.dataset.equip.split(':'); equipItem(kind,id); }
+});
+
+// ==========================================================
+// PROFILE
+// ==========================================================
+function renderProfile(){
+  document.getElementById('profileNameRow').textContent = profile.avatar+' '+profile.name+' ✎';
+  document.getElementById('profTotalCoins').textContent = profile.totalCoinsEarned;
+  document.getElementById('profGames').textContent = profile.gamesPlayed;
+  document.getElementById('profBest').textContent = profile.bestScore;
+  const row = document.getElementById('avatarRow');
+  row.innerHTML = '';
+  DEFAULT_AVATARS.forEach(a=>{
+    const d = document.createElement('button');
+    d.type = 'button';
+    d.className = 'avatar-opt' + (profile.avatar===a?' active':'');
+    d.textContent = a;
+    d.onclick = ()=>{ profile.avatar=a; saveProfile(); renderProfile(); sndClick(); };
+    row.appendChild(d);
+  });
+}
+document.getElementById('profileNameRow').onclick = ()=>{
+  const nn = prompt('Enter your name (max 14 chars):', profile.name);
+  if(nn && nn.trim()){ profile.name = nn.trim().slice(0,14); saveProfile(); renderProfile(); }
+};
+
+// leaderboard tabs
+document.querySelectorAll('.lb-tab').forEach(tab=>{
+  tab.onclick = ()=>{
+    document.querySelectorAll('.lb-tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    renderLeaderboard(parseInt(tab.dataset.diff,10));
+  };
+});
+async function renderLeaderboard(diff){
+  diff = diff || 6;
+  const el = document.getElementById('lbList');
+  const statusEl = document.getElementById('lbStatus');
+  el.innerHTML = '<div style="margin-top:16px;color:var(--text-dim);font-weight:700;">Loading…</div>';
+  if(statusEl) statusEl.textContent = 'Checking online scores…';
+  let list = null, source = 'local';
+  if(hasOnlineStorage()){
+    list = await fetchOnlineLB(diff);
+    if(list!==null) source = 'online';
+  }
+  if(list===null){
+    const lb = loadLB();
+    list = lb[diff]||[];
+    source = 'local';
+  }
+  if(statusEl) statusEl.textContent = source==='online' ? '🌐 Online — synced across devices' : '📴 Local only (this device)';
+  el.innerHTML = '';
+  if(!list || list.length===0){ el.innerHTML = '<div style="font-size:17px; font-weight:700; margin-top:16px; color:var(--text-dim);">No scores yet — be the first!</div>'; return; }
+  const medalColors = [css('--warn'), '#c8c8d2', '#cd7f32'];
+  list.slice(0,10).forEach((row,i)=>{
+    const div = document.createElement('div');
+    div.className = 'lb-row';
+    if(i<3) div.style.borderColor = medalColors[i];
+    div.innerHTML = `<span class="lb-rank" style="color:${i<3?medalColors[i]:'var(--accent)'}">#${i+1}</span>
+      <span class="lb-name" style="color:${i<3?medalColors[i]:'var(--text)'}">${escapeHtml(row.name)}</span>
+      <span class="lb-score">${row.score}</span>`;
+    el.appendChild(div);
+  });
+}
+function escapeHtml(s){ return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+function updateNameBox(){
+  const box = document.getElementById('nameInputRow');
+  box.textContent = playerName || '\u00A0';
+  box.classList.toggle('active', playerName.length>0);
+  document.getElementById('nameHint').textContent = playerName ? 'Press ENTER to save' : 'Type your name, press ENTER';
+}
+
+function updateSettingsUI(){
+  const sBtn = document.getElementById('toggleSound');
+  sBtn.textContent = soundOn ? '🔊 Sound : ON' : '🔇 Sound : OFF';
+  document.getElementById('volPct').textContent = Math.round(soundVolume*100)+'%';
+  document.getElementById('volBar').style.width = Math.round(soundVolume*100)+'%';
+  document.getElementById('toggleWrap').textContent = wrapWalls ? '🧱 Wrap Walls : ON' : '🧱 Wrap Walls : OFF';
+  document.querySelectorAll('.theme-dot').forEach(d=>{
+    d.classList.toggle('active', d.dataset.theme===theme);
+    d.classList.toggle('locked', !profile.ownedSkins.includes(d.dataset.theme));
+  });
+}
+document.getElementById('toggleSound').onclick = ()=>{ soundOn=!soundOn; saveSettings(); updateSettingsUI(); if(soundOn) sndClick(); };
+document.getElementById('toggleWrap').onclick = ()=>{ wrapWalls=!wrapWalls; saveSettings(); updateSettingsUI(); sndClick(); };
+document.getElementById('volPlus').onclick = ()=>{ soundVolume=Math.min(1,soundVolume+0.1); saveSettings(); updateSettingsUI(); sndClick(); };
+document.getElementById('volMinus').onclick = ()=>{ soundVolume=Math.max(0,soundVolume-0.1); saveSettings(); updateSettingsUI(); sndClick(); };
+
+// ==========================================================
+// KEYBOARD
+// ==========================================================
+function togglePause(){
+  if(state!=='playing' && state!=='paused') return;
+  const wasPlaying = state==='playing';
+  state = wasPlaying ? 'paused' : 'playing';
+  document.getElementById('pauseOverlay').classList.toggle('hidden', state!=='paused');
+  document.getElementById('pauseBtn').textContent = state==='paused' ? '▶' : '⏸';
+  if(wasPlaying){
+    // entering pause: remember when, so we can shift timers back on resume
+    pausedAt = performance.now();
+  } else {
+    // resuming: shift any active performance.now()-based power-up
+    // timers forward by however long we were paused, otherwise they
+    // silently drain (or fully expire) in real time while paused.
+    const delta = performance.now() - pausedAt;
+    ['speedUntil','slowUntil','multUntil','magnetUntil'].forEach(k=>{
+      if(effects[k] > 0) effects[k] += delta;
+    });
+    // avoid a burst of catch-up ticks firing immediately after resume
+    lastTick = performance.now(); tickAccum = 0;
+  }
+}
+document.getElementById('pauseBtn').onclick = ()=>{ ensureAudio(); togglePause(); };
+document.getElementById('pauseOverlay').onclick = ()=>{ if(state==='paused') togglePause(); };
+
+window.addEventListener('keydown', (e)=>{
+  ensureAudio();
+  if(state==='name'){
+    if(e.key==='Enter'){ if(playerName.trim()!==''){ const finalName = playerName.trim().slice(0,14); recordScore(selectedSpeed, finalName, score); profile.name = finalName; saveProfile(); showScreen('gameOverOverlay'); document.getElementById('gameOverOverlay').classList.remove('hidden'); state='gameover'; } }
+    else if(e.key==='Backspace'){ playerName = playerName.slice(0,-1); updateNameBox(); }
+    else if(e.key.length===1 && playerName.length<14){ playerName += e.key; updateNameBox(); }
+    return;
+  }
+  if(state==='difficulty'){
+    if(e.key==='1'){ selectedSpeed=6; goto('playing'); }
+    else if(e.key==='2'){ selectedSpeed=9; goto('playing'); }
+    else if(e.key==='3'){ selectedSpeed=13; goto('playing'); }
+    return;
+  }
+  if(state==='instructions'||state==='leaderboard'||state==='settings'||state==='shop'||state==='profile'||state==='mapSelect'){
+    if(e.key==='Escape') goto('menu');
+    return;
+  }
+  if(state==='playing' || state==='paused'){
+    if(e.key==='p'||e.key==='P'){
+      togglePause();
+      return;
+    }
+    if(state!=='playing') return;
+    if(e.key==='ArrowUp'||e.key==='w'||e.key==='W') changeDirection('UP');
+    else if(e.key==='ArrowDown'||e.key==='s'||e.key==='S') changeDirection('DOWN');
+    else if(e.key==='ArrowLeft'||e.key==='a'||e.key==='A') changeDirection('LEFT');
+    else if(e.key==='ArrowRight'||e.key==='d'||e.key==='D') changeDirection('RIGHT');
+    return;
+  }
+  if(state==='gameover'){
+    if(e.key==='r'||e.key==='R') goto('playing');
+    else if(e.key==='Escape') goto('menu');
+    return;
+  }
+});
+
+// ==========================================================
+// TOUCH CONTROLS
+// ==========================================================
+document.querySelectorAll('#touchpad [data-dir]').forEach(btn=>{
+  btn.addEventListener('click', ()=>{ ensureAudio(); if(state==='playing') changeDirection(btn.dataset.dir); });
+});
+let touchStart = null;
+canvas.addEventListener('touchstart', (e)=>{ ensureAudio(); const t=e.changedTouches[0]; touchStart={x:t.clientX,y:t.clientY}; }, {passive:true});
+canvas.addEventListener('touchend', (e)=>{
+  if(!touchStart || state!=='playing') return;
+  const t = e.changedTouches[0];
+  const dx=t.clientX-touchStart.x, dy=t.clientY-touchStart.y;
+  if(Math.abs(dx)<20 && Math.abs(dy)<20) return;
+  if(Math.abs(dx)>Math.abs(dy)) changeDirection(dx>0?'RIGHT':'LEFT'); else changeDirection(dy>0?'DOWN':'UP');
+  touchStart = null;
+}, {passive:true});
+if('ontouchstart' in window){ document.getElementById('touchpad').style.display='grid'; }
+
+// tap canvas to pause/resume on mobile (double tap area not needed; keep simple: tap does nothing extra)
+
+// ==========================================================
+// INIT
+// ==========================================================
+loadSettings();
+// Loading screen shows first while the profile fetch is in flight; once
+// it's ready we reveal the landing splash, and Play drops straight into
+// the menu (no second loading flash).
+let profileReady = false;
+const profileLoadPromise = (async function loadProfileForInit(){
+  const minLoadingTime = new Promise(res=>setTimeout(res, 400)); // avoid a jarring flash on fast connections
+  try{
+    await Promise.all([loadProfile(), minLoadingTime]);
+  }catch(e){
+    console.error('Failed to load profile, starting fresh:', e);
+    profile = defaultProfile();
+  }
+  theme = profile.equippedSkin || theme;
+  selectedMap = profile.equippedMap || 'classic';
+  applyTheme();
+  document.getElementById('hudHigh').textContent = highForDiff(selectedSpeed);
+  updateCoinHUD();
+  profileReady = true;
+  document.getElementById('loadingScreen').classList.add('hidden');
+  document.getElementById('landingScreen').classList.remove('hidden');
+})();
+
+document.getElementById('btnLandingPlay').onclick = async ()=>{
+  ensureAudio(); sndClick();
+  document.getElementById('landingScreen').classList.add('hidden');
+  if(!profileReady){
+    // extremely unlikely (Play can't be tapped until landing is shown,
+    // which only happens after profileReady is set) but guard anyway
+    document.getElementById('loadingScreen').classList.remove('hidden');
+    await profileLoadPromise;
+    document.getElementById('loadingScreen').classList.add('hidden');
+  }
+  goto('menu');
+};
+
+})();
+</script>
+</body>
+</html>
