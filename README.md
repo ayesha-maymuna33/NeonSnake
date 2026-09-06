@@ -1,2 +1,2 @@
 # NeonSnake
-A neon-style Snake Game developed using Python and Pygame.
+A neon-styled Snake game built with HTML, CSS, and JavaScript, featuring power-ups, skins, maps, themes, and leaderboards.
