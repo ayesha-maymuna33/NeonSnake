@@ -1,9 +1,11 @@
 # 🐍 NeonSnake
-
 A neon-styled Snake game built with HTML, CSS, and JavaScript.
 
-## Features
+## Play
+🎮 **[Play Neon Snake live](https://ayesha-maymuna33.github.io/NeonSnake/)**
+— no download needed, works in any browser.
 
+## Features
 - 🎮 Classic Snake gameplay
 - ⚡ Power-ups
 - 🎨 Multiple skins and themes
